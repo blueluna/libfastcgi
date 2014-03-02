@@ -1,0 +1,19 @@
+# project
+test/*_test
+
+# build
+*.a
+
+# CMake
+CMakeFiles/
+CMakeCache.txt
+compile_commands.json
+Makefile
+*.cmake
+
+# Mac OS X
+.DS_Store
+._.DS_Store
+
+# clang
+*.plist
