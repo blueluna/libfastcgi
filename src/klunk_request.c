@@ -1,13 +1,13 @@
 #include "errorcodes.h"
-#include "fcgi_session.h"
+#include "klunk_request.h"
 #include "fcgi_param.h"
 
 #include <stdlib.h>
 
-fcgi_session_t* fcgi_session_create()
+klunk_request_t* klunk_request_create()
 {
-	fcgi_session_t *session = 0;
-	session = malloc(sizeof(fcgi_session_t));
+	klunk_request_t *session = 0;
+	session = malloc(sizeof(klunk_request_t));
 	if (session != 0) {
 		session->id = 0;
 		session->role = 0;
@@ -38,7 +38,7 @@ fcgi_session_t* fcgi_session_create()
 	return session;
 }
 
-void fcgi_session_destroy(fcgi_session_t *session)
+void klunk_request_destroy(klunk_request_t *session)
 {
 	if (session != 0) {
 		buffer_destroy(session->content);

@@ -3,11 +3,11 @@
 #include <arpa/inet.h>
 
 #include "testcase.h"
-#include "fcgi.h"
-#include "fcgi_session.h"
+#include "klunk.h"
+#include "klunk_request.h"
 #include "fcgi_param.h"
 #include "errorcodes.h"
-#include "test_fcgi_context.h"
+#include "test_klunk_context.h"
 
 uint16_t size8b(const uint16_t size)
 {
@@ -125,7 +125,7 @@ int32_t generate_stdin(uint8_t *data, const int32_t len, uint16_t request_id
 	return size;
 }
 
-void fcgi_context_test()
+void klunk_context_test()
 {
 	int32_t result = E_SUCCESS;
 	int32_t data_size = 0;
@@ -133,43 +133,43 @@ void fcgi_context_test()
 	int str_result = 0;
 	char *data = 0;
 	char *params = 0;
-	fcgi_context_t* ctx = 0;
+	klunk_context_t* ctx = 0;
 
 	data = malloc(1024);
 	assert(data != 0);
 	params = malloc(1024);
 	assert(params != 0);
 
-	ctx = fcgi_create();
+	ctx = klunk_create();
 	TEST_ASSERT_NOT_EQUAL(ctx, 0);
 	if (ctx != 0) {
-		result = fcgi_current_request(ctx);
+		result = klunk_current_request(ctx);
 		TEST_ASSERT_EQUAL(result, 0);
-		result = fcgi_request_state(ctx, 0);
-		TEST_ASSERT_EQUAL(result, E_FCGI_SESSION_NOT_FOUND);
+		result = klunk_request_state(ctx, 0);
+		TEST_ASSERT_EQUAL(result, E_REQUEST_NOT_FOUND);
 
 		data_size = generate_begin((uint8_t*)data, 1024, 1);
 
-		result = fcgi_read(ctx, data, data_size);
-		TEST_ASSERT_EQUAL(result, FCGI_NEW_REQUEST);
+		result = klunk_process_data(ctx, data, data_size);
+		TEST_ASSERT_EQUAL(result, KLUNK_NEW_REQUEST);
 
-		result = fcgi_current_request(ctx);
+		result = klunk_current_request(ctx);
 		TEST_ASSERT_EQUAL(result, 1);
 
-		result = fcgi_request_state(ctx, result);
+		result = klunk_request_state(ctx, result);
 		TEST_ASSERT_EQUAL(result, FCGI_BEGIN_REQUEST);
 
-		result = fcgi_read(ctx, data, data_size);
-		TEST_ASSERT_EQUAL(result, E_FCGI_SESSION_DUPLICATE);
+		result = klunk_process_data(ctx, data, data_size);
+		TEST_ASSERT_EQUAL(result, E_REQUEST_DUPLICATE);
 
 		params_size = add_param(params, 1024, "hello", "world");
 		data_size = generate_param((uint8_t*)data, 1024, 1, params, params_size);
 
-		result = fcgi_read(ctx, data, data_size);
+		result = klunk_process_data(ctx, data, data_size);
 		TEST_ASSERT_EQUAL(result, E_SUCCESS);
 
-		fcgi_session_t *session = fcgi_find_session(ctx, 1);
-		fcgi_param_t *param = (fcgi_param_t*)(session->params->items->data);
+		klunk_request_t *request = klunk_find_request(ctx, 1);
+		fcgi_param_t *param = (fcgi_param_t*)(request->params->items->data);
 		
 		str_result = strcmp(param->name, "hello");
 		TEST_ASSERT_EQUAL(str_result, 0);
@@ -182,33 +182,33 @@ void fcgi_context_test()
 			);
 		data_size = generate_param((uint8_t*)data, 1024, 1, params, params_size);
 
-		result = fcgi_read(ctx, data, data_size);
+		result = klunk_process_data(ctx, data, data_size);
 		TEST_ASSERT_EQUAL(result, E_SUCCESS);
 
 		data_size = generate_param((uint8_t*)data, 1024, 1, 0, 0);
 
-		result = fcgi_read(ctx, data, data_size);
-		TEST_ASSERT_EQUAL(result, FCGI_PARAMS_DONE);
+		result = klunk_process_data(ctx, data, data_size);
+		TEST_ASSERT_EQUAL(result, KLUNK_PARAMS_DONE);
 
 		memcpy(params, "{\"hello\": \"world\"}", 18);
 		data_size = generate_stdin((uint8_t*)data, 1024, 1, params, 18);
 
-		result = fcgi_read(ctx, data, data_size);
+		result = klunk_process_data(ctx, data, data_size);
 		TEST_ASSERT_EQUAL(result, E_SUCCESS);
 
 		data_size = generate_stdin((uint8_t*)data, 1024, 1, 0, 0);
 
-		result = fcgi_read(ctx, data, data_size);
-		TEST_ASSERT_EQUAL(result, FCGI_STDIN_DONE);
+		result = klunk_process_data(ctx, data, data_size);
+		TEST_ASSERT_EQUAL(result, KLUNK_STDIN_DONE);
 
-		data_size = buffer_used(session->content);
-		memcpy(data, buffer_peek(session->content), data_size);
+		data_size = buffer_used(request->content);
+		memcpy(data, buffer_peek(request->content), data_size);
 		data[data_size] = 0;
 		params[18] = 0;
 		str_result = strcmp(data, params);
 		TEST_ASSERT_EQUAL(str_result, 0);
 
-		fcgi_destroy(ctx);
+		klunk_destroy(ctx);
 	}
 
 	free(data);

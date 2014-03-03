@@ -1,5 +1,6 @@
 #include <stdint.h>
 #include <assert.h>
+#include <stdio.h>
 
 #include "testcase.h"
 #include "fcgi_param.h"

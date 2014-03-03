@@ -1,4 +1,5 @@
 #include "testcase.h"
+#include <stdio.h>
 
 void test_assert_true(int boolean, const char* expr, const char* filename, const int line)
 {
