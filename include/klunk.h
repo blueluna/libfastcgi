@@ -3,7 +3,6 @@
 #define KLUNK_H
 
 #include <stdint.h>
-#include <string.h>
 #include "llist.h"
 #include "buffer.h"
 #include "fcgi_protocol.h"

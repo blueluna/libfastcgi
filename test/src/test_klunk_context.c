@@ -4,6 +4,7 @@
 
 #include "testcase.h"
 #include "klunk.h"
+#include "klunk_private.h"
 #include "klunk_request.h"
 #include "fcgi_param.h"
 #include "errorcodes.h"

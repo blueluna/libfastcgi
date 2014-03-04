@@ -479,13 +479,19 @@ int32_t klunk_read(klunk_context_t *ctx)
 int32_t klunk_write(klunk_context_t *ctx, const uint16_t request_id
 	, const char *data, const size_t len)
 {
+	int32_t result = E_SUCCESS;
+	return result;
 }
 
 int32_t klunk_write_error(klunk_context_t *ctx, const uint16_t request_id
 	, const char *data, const size_t len)
 {
+	int32_t result = E_SUCCESS;
+	return result;
 }
 
 int32_t klunk_finish(klunk_context_t *ctx, const uint16_t request_id)
 {
+	int32_t result = E_SUCCESS;
+	return result;
 }
