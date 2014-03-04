@@ -29,10 +29,15 @@ enum {
 	FCGI_FILTER				= 3
 };
 
+/* protocolStatus codes */
 enum {
+	/* Request finished without error */
 	FCGI_REQUEST_COMPLETE	= 0,
+	/* Request rejected because of too many multiplexed connections */
 	FCGI_CANT_MPX_CONN		= 1,
+	/* Request rejected because of resource exhaustion (like DB connections) */
 	FCGI_OVERLOADED			= 2,
+	/* Request rejected because the role cannot be handled */
 	FCGI_UNKNOWN_ROLE		= 3
 };
 
@@ -56,7 +61,13 @@ typedef struct fcgi_record_begin_  {
 } fcgi_record_begin_t;
 
 typedef struct fcgi_record_end_  {
+	/* appStatus is role dependand
+	 * RESPONDER: CGI exit code
+	 * AUTHORIZER: ???
+	 * FILTER: CGI exit code
+	 */
 	uint32_t        appStatus;
+	/* See enum above */
 	uint8_t         protocolStatus;
 	uint8_t         reserved[3];
 } fcgi_record_end_t;
