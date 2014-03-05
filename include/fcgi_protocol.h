@@ -33,7 +33,7 @@ enum {
 	FCGI_FILTER				= 3
 };
 
-/* protocolStatus codes */
+/* fcgi_record_end_t.protocol_status codes */
 enum {
 	/* Request finished without error */
 	FCGI_REQUEST_COMPLETE	= 0,
@@ -70,9 +70,9 @@ typedef struct fcgi_record_end_  {
 	 * AUTHORIZER: ???
 	 * FILTER: CGI exit code
 	 */
-	uint32_t        appStatus;
+	uint32_t        app_status;
 	/* See enum above */
-	uint8_t         protocolStatus;
+	uint8_t         protocol_status;
 	uint8_t         reserved[3];
 } fcgi_record_end_t;
 

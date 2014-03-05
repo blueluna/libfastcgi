@@ -8,6 +8,7 @@
 #include <unistd.h>
 #include <errno.h>
 
+/* Calculate the size aligned to a 8-byte border */
 uint16_t klunk_size8b(const uint16_t size)
 {
 	uint16_t s;
@@ -203,6 +204,9 @@ int32_t klunk_write_record(klunk_context_t *ctx, klunk_request_t *request
 			else if (type == FCGI_STDERR) {
 				klunk_request_set_state(request, KLUNK_RS_STDERR);
 			}
+			else if (type == FCGI_END_REQUEST) {
+				klunk_request_set_state(request, KLUNK_RS_FINISHED);
+			}
 		}
 		result = klunk_prepare_header(request, &header);
 	}
@@ -267,6 +271,18 @@ int32_t klunk_stderr(klunk_context_t *ctx, klunk_request_t *request
 	, const char *data, const uint16_t len)
 {
 	return klunk_write_record(ctx, request, FCGI_STDERR, data, len);
+}
+
+int32_t klunk_end_record(klunk_context_t *ctx, klunk_request_t *request
+	, const uint32_t app_status, const uint8_t protocol_status)
+{
+	fcgi_record_end_t record = {
+		.app_status = app_status,
+		.protocol_status = protocol_status,
+		.reserved = {0}
+	};
+	return klunk_write_record(ctx, request, FCGI_END_REQUEST
+		, (const char*)&record, (uint16_t)sizeof(fcgi_record_end_t));
 }
 
 int32_t klunk_process_input_buffer(klunk_context_t *ctx)
@@ -621,6 +637,7 @@ int32_t klunk_write_error(klunk_context_t *ctx, const uint16_t request_id
 int32_t klunk_finish(klunk_context_t *ctx, const uint16_t request_id)
 {
 	int32_t result = E_SUCCESS;
+	int32_t state = E_SUCCESS;
 	klunk_request_t *request = 0;
 
 	request = klunk_find_request(ctx, request_id);
@@ -629,12 +646,27 @@ int32_t klunk_finish(klunk_context_t *ctx, const uint16_t request_id)
 		result = E_REQUEST_NOT_FOUND;
 	}
 	else {
-		int32_t state = klunk_request_get_state(request, 0);
+		state = klunk_request_get_state(request, 0);
+	}
+	if (state > 0) {
+		/* Finish any outstanding stdout operations */
 		if ((state & KLUNK_RS_STDOUT) ^ (state & KLUNK_RS_STDOUT_DONE)) {
-			klunk_stdout(ctx, request, 0, 0);
+			result = klunk_stdout(ctx, request, 0, 0);
 		}
-		if ((state & KLUNK_RS_STDERR) ^ (state & KLUNK_RS_STDERR_DONE)) {
-			klunk_stderr(ctx, request, 0, 0);
+		if (result >= 0) {
+			/* Finish any outstanding stderr operations */
+			if ((state & KLUNK_RS_STDERR) ^ (state & KLUNK_RS_STDERR_DONE)) {
+				result = klunk_stderr(ctx, request, 0, 0);
+			}
+		}
+		if (result >= 0) {
+			/* Send finish record */
+			result = klunk_end_record(ctx, request, 0, FCGI_REQUEST_COMPLETE);
+		}
+		if (result >= 0) {
+			/* If all goes well, remove the request */
+			llist_remove(ctx->requests, request);
+			result = E_SUCCESS;
 		}
 	}
 	return result;
