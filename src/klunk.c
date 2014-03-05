@@ -188,9 +188,11 @@ int32_t klunk_write_record(klunk_context_t *ctx, klunk_request_t *request
 
 		if (len == 0) {
 			if (type == FCGI_STDOUT) {
+				klunk_request_set_state(request, KLUNK_RS_STDOUT);
 				klunk_request_set_state(request, KLUNK_RS_STDOUT_DONE);
 			}
 			else if (type == FCGI_STDERR) {
+				klunk_request_set_state(request, KLUNK_RS_STDERR);
 				klunk_request_set_state(request, KLUNK_RS_STDERR_DONE);
 			}
 		}
@@ -619,5 +621,21 @@ int32_t klunk_write_error(klunk_context_t *ctx, const uint16_t request_id
 int32_t klunk_finish(klunk_context_t *ctx, const uint16_t request_id)
 {
 	int32_t result = E_SUCCESS;
+	klunk_request_t *request = 0;
+
+	request = klunk_find_request(ctx, request_id);
+
+	if (request == 0) {
+		result = E_REQUEST_NOT_FOUND;
+	}
+	else {
+		int32_t state = klunk_request_get_state(request, 0);
+		if ((state & KLUNK_RS_STDOUT) ^ (state & KLUNK_RS_STDOUT_DONE)) {
+			klunk_stdout(ctx, request, 0, 0);
+		}
+		if ((state & KLUNK_RS_STDERR) ^ (state & KLUNK_RS_STDERR_DONE)) {
+			klunk_stderr(ctx, request, 0, 0);
+		}
+	}
 	return result;
 }
