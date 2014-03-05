@@ -1,3 +1,7 @@
+/* FCGI protocol constants and structures
+ *(C) 2014 Erik Svensson <erik.public@gmail.com>
+ * Licensed under the MIT license.
+ */
 
 #ifndef FCGI_PROTOCOL_H
 #define FCGI_PROTOCOL_H

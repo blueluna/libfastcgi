@@ -1,3 +1,7 @@
+/* Klunk a FCGI helper library
+ *(C) 2014 Erik Svensson <erik.public@gmail.com>
+ * Licensed under the MIT license.
+ */
 
 #ifndef KLUNK_H
 #define KLUNK_H

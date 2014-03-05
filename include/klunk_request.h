@@ -1,3 +1,7 @@
+/* Klunk request, handling the state of a FCGI request.
+ *(C) 2014 Erik Svensson <erik.public@gmail.com>
+ * Licensed under the MIT license.
+ */
 
 #ifndef KLUNK_REQUEST_H
 #define KLUNK_REQUEST_H

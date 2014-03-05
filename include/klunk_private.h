@@ -1,3 +1,7 @@
+/* Klunk "private" functions
+ *(C) 2014 Erik Svensson <erik.public@gmail.com>
+ * Licensed under the MIT license.
+ */
 
 #ifndef KLUNK_PRIVATE_H
 #define KLUNK_PRIVATE_H

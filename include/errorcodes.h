@@ -1,6 +1,6 @@
 /* Error codes
  *(C) 2014 Erik Svensson <erik.public@gmail.com>
- * Licensed under the MIT licence.
+ * Licensed under the MIT license.
  */
 
  #ifndef ES_ERRORCODES_H
