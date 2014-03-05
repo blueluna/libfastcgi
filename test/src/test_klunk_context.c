@@ -1,4 +1,5 @@
 #include <stdint.h>
+#include <stdio.h>
 #include <assert.h>
 #include <arpa/inet.h>
 
@@ -131,6 +132,7 @@ void klunk_context_test()
 	int32_t result = E_SUCCESS;
 	int32_t data_size = 0;
 	int32_t params_size = 0;
+	uint16_t request_id = 1;
 	int str_result = 0;
 	char *data = 0;
 	char *params = 0;
@@ -149,27 +151,30 @@ void klunk_context_test()
 		result = klunk_request_state(ctx, 0);
 		TEST_ASSERT_EQUAL(result, E_REQUEST_NOT_FOUND);
 
-		data_size = generate_begin((uint8_t*)data, 1024, 1);
+		data_size = generate_begin((uint8_t*)data, 1024, request_id);
 
 		result = klunk_process_data(ctx, data, data_size);
 		TEST_ASSERT_EQUAL(result, KLUNK_NEW_REQUEST);
 
 		result = klunk_current_request(ctx);
-		TEST_ASSERT_EQUAL(result, 1);
+		TEST_ASSERT_EQUAL(result, request_id);
 
 		result = klunk_request_state(ctx, result);
-		TEST_ASSERT_EQUAL(result, FCGI_BEGIN_REQUEST);
+		TEST_ASSERT_EQUAL(result, KLUNK_RS_NEW);
 
 		result = klunk_process_data(ctx, data, data_size);
 		TEST_ASSERT_EQUAL(result, E_REQUEST_DUPLICATE);
 
 		params_size = add_param(params, 1024, "hello", "world");
-		data_size = generate_param((uint8_t*)data, 1024, 1, params, params_size);
+		data_size = generate_param((uint8_t*)data, 1024, request_id, params, params_size);
 
 		result = klunk_process_data(ctx, data, data_size);
 		TEST_ASSERT_EQUAL(result, E_SUCCESS);
 
-		klunk_request_t *request = klunk_find_request(ctx, 1);
+		result = klunk_request_state(ctx, request_id);
+		TEST_ASSERT_EQUAL(result, (KLUNK_RS_NEW | KLUNK_RS_PARAMS));
+
+		klunk_request_t *request = klunk_find_request(ctx, request_id);
 		fcgi_param_t *param = (fcgi_param_t*)(request->params->items->data);
 		
 		str_result = strcmp(param->name, "hello");
@@ -181,26 +186,41 @@ void klunk_context_test()
 		params_size = add_param(params, 1024, "goodbye"
 			, "lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum."
 			);
-		data_size = generate_param((uint8_t*)data, 1024, 1, params, params_size);
+		data_size = generate_param((uint8_t*)data, 1024, request_id, params, params_size);
 
 		result = klunk_process_data(ctx, data, data_size);
 		TEST_ASSERT_EQUAL(result, E_SUCCESS);
 
-		data_size = generate_param((uint8_t*)data, 1024, 1, 0, 0);
+		result = klunk_request_state(ctx, request_id);
+		TEST_ASSERT_EQUAL(result, (KLUNK_RS_NEW | KLUNK_RS_PARAMS));
+
+		data_size = generate_param((uint8_t*)data, 1024, request_id, 0, 0);
 
 		result = klunk_process_data(ctx, data, data_size);
 		TEST_ASSERT_EQUAL(result, KLUNK_PARAMS_DONE);
 
+		result = klunk_request_state(ctx, request_id);
+		TEST_ASSERT_EQUAL(result, (KLUNK_RS_NEW | KLUNK_RS_PARAMS
+			| KLUNK_RS_PARAMS_DONE));
+
 		memcpy(params, "{\"hello\": \"world\"}", 18);
-		data_size = generate_stdin((uint8_t*)data, 1024, 1, params, 18);
+		data_size = generate_stdin((uint8_t*)data, 1024, request_id, params, 18);
 
 		result = klunk_process_data(ctx, data, data_size);
 		TEST_ASSERT_EQUAL(result, E_SUCCESS);
 
-		data_size = generate_stdin((uint8_t*)data, 1024, 1, 0, 0);
+		result = klunk_request_state(ctx, request_id);
+		TEST_ASSERT_EQUAL(result, (KLUNK_RS_NEW | KLUNK_RS_PARAMS
+			| KLUNK_RS_PARAMS_DONE | KLUNK_RS_STDIN));
+
+		data_size = generate_stdin((uint8_t*)data, 1024, request_id, 0, 0);
 
 		result = klunk_process_data(ctx, data, data_size);
 		TEST_ASSERT_EQUAL(result, KLUNK_STDIN_DONE);
+
+		result = klunk_request_state(ctx, request_id);
+		TEST_ASSERT_EQUAL(result, (KLUNK_RS_NEW | KLUNK_RS_PARAMS
+			| KLUNK_RS_PARAMS_DONE | KLUNK_RS_STDIN | KLUNK_RS_STDIN_DONE));
 
 		data_size = buffer_used(request->content);
 		memcpy(data, buffer_peek(request->content), data_size);

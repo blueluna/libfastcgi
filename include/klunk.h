@@ -20,7 +20,7 @@ enum {
 
 typedef struct klunk_context_  {
 	int32_t					file_descriptor;
-	llist_t					*sessions;
+	llist_t					*requests;
 	buffer_t				*input;
 	buffer_t				*output;
 	fcgi_record_header_t	*current_header;
