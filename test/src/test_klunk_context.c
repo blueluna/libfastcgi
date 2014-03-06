@@ -2,6 +2,8 @@
 #include <stdio.h>
 #include <assert.h>
 #include <arpa/inet.h>
+#include <unistd.h>
+#include <errno.h>
 
 #include "testcase.h"
 #include "klunk.h"
@@ -136,25 +138,79 @@ void klunk_context_test()
 	int str_result = 0;
 	char *data = 0;
 	char *params = 0;
-	klunk_context_t* ctx = 0;
+	klunk_context_t *ctx = 0;
+	klunk_request_t *request = 0;
+	int fds[2] = {0};
 
 	data = malloc(1024);
 	assert(data != 0);
 	params = malloc(1024);
 	assert(params != 0);
 
+	/* Test responses for null context */
+	klunk_destroy(0);
+
+	result = klunk_set_file_descriptor(0, 0);
+	TEST_ASSERT_EQUAL(result, E_INVALID_OBJECT);
+
+	result = klunk_get_file_descriptor(0);
+	TEST_ASSERT_EQUAL(result, E_INVALID_OBJECT);
+
+	result = klunk_current_request(0);
+	TEST_ASSERT_EQUAL(result, E_INVALID_OBJECT);
+
+	result = klunk_request_state(0, 0);
+	TEST_ASSERT_EQUAL(result, E_INVALID_OBJECT);
+
+	result = klunk_read(0);
+	TEST_ASSERT_EQUAL(result, E_INVALID_OBJECT);
+
+	result = klunk_write(0, 0, 0, 0);
+	TEST_ASSERT_EQUAL(result, E_INVALID_OBJECT);
+
+	result = klunk_write_error(0, 0, 0, 0);
+	TEST_ASSERT_EQUAL(result, E_INVALID_OBJECT);
+
+	result = klunk_finish(0, 0);
+	TEST_ASSERT_EQUAL(result, E_INVALID_OBJECT);
+
+	request = klunk_find_request(0, 0);
+	TEST_ASSERT_EQUAL(request, 0);
+
 	ctx = klunk_create();
 	TEST_ASSERT_NOT_EQUAL(ctx, 0);
 	if (ctx != 0) {
+		/* Check state for newly initialized context */
+		result = klunk_get_file_descriptor(ctx);
+		TEST_ASSERT_EQUAL(result, E_INVALID_FILE_HANDLE);
+
 		result = klunk_current_request(ctx);
 		TEST_ASSERT_EQUAL(result, 0);
+
 		result = klunk_request_state(ctx, 0);
 		TEST_ASSERT_EQUAL(result, E_REQUEST_NOT_FOUND);
+
+		result = klunk_read(ctx);
+		TEST_ASSERT_EQUAL(result, E_INVALID_FILE_HANDLE);
+		
+		result = klunk_write(ctx, 0, 0, 0);
+		TEST_ASSERT_EQUAL(result, E_REQUEST_NOT_FOUND);
+		
+		result = klunk_write_error(ctx, 0, 0, 0);
+		TEST_ASSERT_EQUAL(result, E_REQUEST_NOT_FOUND);
+		
+		result = klunk_finish(ctx, 0);
+		TEST_ASSERT_EQUAL(result, E_REQUEST_NOT_FOUND);
+
+		/* Insert a begin record to generate a request object */
 
 		data_size = generate_begin((uint8_t*)data, 1024, request_id);
 
 		result = klunk_process_data(ctx, data, data_size);
 		TEST_ASSERT_EQUAL(result, KLUNK_NEW_REQUEST);
+
+		result = klunk_get_file_descriptor(ctx);
+		TEST_ASSERT_EQUAL(result, E_INVALID_FILE_HANDLE);
 
 		result = klunk_current_request(ctx);
 		TEST_ASSERT_EQUAL(result, request_id);
@@ -162,19 +218,58 @@ void klunk_context_test()
 		result = klunk_request_state(ctx, result);
 		TEST_ASSERT_EQUAL(result, KLUNK_RS_NEW);
 
+		result = klunk_read(ctx);
+		TEST_ASSERT_EQUAL(result, E_INVALID_FILE_HANDLE);
+		
+		result = klunk_write(ctx, request_id, 0, 0);
+		TEST_ASSERT_EQUAL(result, E_INVALID_FILE_HANDLE);
+		
+		result = klunk_write_error(ctx, request_id, 0, 0);
+		TEST_ASSERT_EQUAL(result, E_INVALID_FILE_HANDLE);
+		
+		result = klunk_finish(ctx, request_id);
+		TEST_ASSERT_EQUAL(result, E_INVALID_FILE_HANDLE);
+
+		result = klunk_request_state(ctx, request_id);
+		TEST_ASSERT_EQUAL(result, KLUNK_RS_NEW);
+
+		/* Run the same begin request again */
+
 		result = klunk_process_data(ctx, data, data_size);
 		TEST_ASSERT_EQUAL(result, E_REQUEST_DUPLICATE);
+
+		result = klunk_request_state(ctx, request_id);
+		TEST_ASSERT_EQUAL(result, KLUNK_RS_NEW);
+
+		/* Start using file descriptors with a pipe */
+		result = pipe(fds);
+		if (result !=  0) {
+			printf("Failed to create pipe, %d: %d <-> %d\n", result, fds[0], fds[1]);
+			goto teardown;
+		}
+
+		result = klunk_set_file_descriptor(ctx, fds[0]);
+		TEST_ASSERT_EQUAL(result, E_SUCCESS);
+		result = klunk_get_file_descriptor(ctx);
+		TEST_ASSERT_EQUAL(result, fds[0]);
+
+		/* Insert a param record */
 
 		params_size = add_param(params, 1024, "hello", "world");
 		data_size = generate_param((uint8_t*)data, 1024, request_id, params, params_size);
 
-		result = klunk_process_data(ctx, data, data_size);
+		result = write(fds[1], data, data_size);
+		if (result == -1) {
+			printf("Failed to write to pipe: %d: %d\n", result, errno);
+		}
+
+		result = klunk_read(ctx);
 		TEST_ASSERT_EQUAL(result, E_SUCCESS);
 
 		result = klunk_request_state(ctx, request_id);
 		TEST_ASSERT_EQUAL(result, (KLUNK_RS_NEW | KLUNK_RS_PARAMS));
 
-		klunk_request_t *request = klunk_find_request(ctx, request_id);
+		request = klunk_find_request(ctx, request_id);
 		fcgi_param_t *param = (fcgi_param_t*)(request->params->items->data);
 		
 		str_result = strcmp(param->name, "hello");
@@ -183,12 +278,19 @@ void klunk_context_test()
 		str_result = strcmp(param->value, "world");
 		TEST_ASSERT_EQUAL(str_result, 0);
 
+		/* Insert another param record */
+
 		params_size = add_param(params, 1024, "goodbye"
 			, "lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum."
 			);
 		data_size = generate_param((uint8_t*)data, 1024, request_id, params, params_size);
 
-		result = klunk_process_data(ctx, data, data_size);
+		result = write(fds[1], data, data_size);
+		if (result == -1) {
+			printf("Failed to write to pipe: %d: %d\n", result, errno);
+		}
+
+		result = klunk_read(ctx);
 		TEST_ASSERT_EQUAL(result, E_SUCCESS);
 
 		result = klunk_request_state(ctx, request_id);
@@ -196,7 +298,12 @@ void klunk_context_test()
 
 		data_size = generate_param((uint8_t*)data, 1024, request_id, 0, 0);
 
-		result = klunk_process_data(ctx, data, data_size);
+		result = write(fds[1], data, data_size);
+		if (result == -1) {
+			printf("Failed to write to pipe: %d: %d\n", result, errno);
+		}
+
+		result = klunk_read(ctx);
 		TEST_ASSERT_EQUAL(result, KLUNK_PARAMS_DONE);
 
 		result = klunk_request_state(ctx, request_id);
@@ -206,7 +313,12 @@ void klunk_context_test()
 		memcpy(params, "{\"hello\": \"world\"}", 18);
 		data_size = generate_stdin((uint8_t*)data, 1024, request_id, params, 18);
 
-		result = klunk_process_data(ctx, data, data_size);
+		result = write(fds[1], data, data_size);
+		if (result == -1) {
+			printf("Failed to write to pipe: %d: %d\n", result, errno);
+		}
+
+		result = klunk_read(ctx);
 		TEST_ASSERT_EQUAL(result, E_SUCCESS);
 
 		result = klunk_request_state(ctx, request_id);
@@ -215,7 +327,12 @@ void klunk_context_test()
 
 		data_size = generate_stdin((uint8_t*)data, 1024, request_id, 0, 0);
 
-		result = klunk_process_data(ctx, data, data_size);
+		result = write(fds[1], data, data_size);
+		if (result == -1) {
+			printf("Failed to write to pipe: %d: %d\n", result, errno);
+		}
+
+		result = klunk_read(ctx);
 		TEST_ASSERT_EQUAL(result, KLUNK_STDIN_DONE);
 
 		result = klunk_request_state(ctx, request_id);
@@ -229,7 +346,39 @@ void klunk_context_test()
 		str_result = strcmp(data, params);
 		TEST_ASSERT_EQUAL(str_result, 0);
 
+		result = klunk_get_file_descriptor(ctx);
+		TEST_ASSERT_EQUAL(result, fds[0]);
+
+		/* Switch direction */
+		result = klunk_set_file_descriptor(ctx, fds[1]);
+		TEST_ASSERT_EQUAL(result, E_SUCCESS);
+		result = klunk_get_file_descriptor(ctx);
+		TEST_ASSERT_EQUAL(result, fds[1]);
+
+		memcpy(params, "{\"hello\": \"world\"}", 18);
+
+		klunk_write(ctx, request_id, params, 18);
+
+		/* TODO: write independent record parser */
+		data_size = read(fds[0], data, 1024);
+		printf("%d\n", data_size);
+
+		klunk_write(ctx, request_id, 0, 0);
+
+		data_size = read(fds[0], data, 1024);
+		printf("%d\n", data_size);
+
+		klunk_finish(ctx, request_id);
+
+		data_size = read(fds[0], data, 1024);
+		printf("%d\n", data_size);
+
+		request = klunk_find_request(ctx, request_id);
+		TEST_ASSERT_EQUAL(request, 0);
+
+teardown:
 		klunk_destroy(ctx);
+		klunk_destroy(0);
 	}
 
 	free(data);
