@@ -41,6 +41,12 @@ void klunk_destroy(klunk_context_t *ctx);
  */
 int32_t klunk_set_file_descriptor(klunk_context_t *ctx, int32_t fd);
 
+/* Get the registered file descriptor 
+ * Negative return value means error or that the file descriptor is
+ * uninitialized.
+ */
+int32_t klunk_get_file_descriptor(klunk_context_t *ctx);
+
 /* Get the current request id.
  * Negative return value means error.
  */
@@ -77,7 +83,7 @@ int32_t klunk_write_error(klunk_context_t *ctx, const uint16_t request_id
  */
 int32_t klunk_finish(klunk_context_t *ctx, const uint16_t request_id);
 
-/* Find and return the reuest with the supplied id. return zero if the 
+/* Find and return the request with the supplied id. return zero if the 
  * request object wasn't found.
  */
 klunk_request_t* klunk_find_request(klunk_context_t *ctx, const uint16_t id);

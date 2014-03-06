@@ -553,6 +553,17 @@ int32_t klunk_set_file_descriptor(klunk_context_t *ctx, int32_t fd)
 	return E_SUCCESS;
 }
 
+int32_t klunk_get_file_descriptor(klunk_context_t *ctx)
+{
+	if (ctx == 0) {
+		return E_INVALID_OBJECT;
+	}
+	if (ctx->file_descriptor < 0) {
+		return E_INVALID_FILE_HANDLE;
+	}
+	return ctx->file_descriptor;
+}
+
 int32_t klunk_current_request(klunk_context_t *ctx)
 {
 	if (ctx == 0) {
