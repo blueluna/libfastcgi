@@ -12,16 +12,16 @@
 
 enum {
 	KLUNK_RS_INIT			= 0,
-	KLUNK_RS_NEW			= (1 << 1),
-	KLUNK_RS_PARAMS			= (1 << 2),
-	KLUNK_RS_PARAMS_DONE	= (1 << 3),
-	KLUNK_RS_STDIN			= (1 << 4),
-	KLUNK_RS_STDIN_DONE		= (1 << 5),
-	KLUNK_RS_STDOUT			= (1 << 6),
-	KLUNK_RS_STDOUT_DONE	= (1 << 7),
-	KLUNK_RS_STDERR			= (1 << 8),
-	KLUNK_RS_STDERR_DONE	= (1 << 9),
-	KLUNK_RS_FINISHED		= (1 << 10)
+	KLUNK_RS_NEW			= 1,
+	KLUNK_RS_PARAMS			= (1 << 1),
+	KLUNK_RS_PARAMS_DONE	= (1 << 2),
+	KLUNK_RS_STDIN			= (1 << 3),
+	KLUNK_RS_STDIN_DONE		= (1 << 4),
+	KLUNK_RS_STDOUT			= (1 << 5),
+	KLUNK_RS_STDOUT_DONE	= (1 << 6),
+	KLUNK_RS_STDERR			= (1 << 7),
+	KLUNK_RS_STDERR_DONE	= (1 << 8),
+	KLUNK_RS_FINISHED		= (1 << 9)
 };
 
 typedef struct klunk_request_  {
