@@ -166,7 +166,7 @@ int32_t klunk_prepare_header(klunk_request_t *request
 	else {
 		header->version = FCGI_VERSION_1;
 		header->type = FCGI_UNKNOWN_TYPE;
-		header->request_id = request->id;
+		header->request_id = htons(request->id);
 		header->content_length = 0;
 		header->padding_length = 0;
 		header->reserved = 0;
@@ -186,28 +186,6 @@ int32_t klunk_write_record(klunk_context_t *ctx, klunk_request_t *request
 		result = E_INVALID_FILE_HANDLE;
 	}
 	if (result == E_SUCCESS) {
-
-		if (len == 0) {
-			if (type == FCGI_STDOUT) {
-				klunk_request_set_state(request, KLUNK_RS_STDOUT);
-				klunk_request_set_state(request, KLUNK_RS_STDOUT_DONE);
-			}
-			else if (type == FCGI_STDERR) {
-				klunk_request_set_state(request, KLUNK_RS_STDERR);
-				klunk_request_set_state(request, KLUNK_RS_STDERR_DONE);
-			}
-		}
-		else {
-			if (type == FCGI_STDOUT) {
-				klunk_request_set_state(request, KLUNK_RS_STDOUT);
-			}
-			else if (type == FCGI_STDERR) {
-				klunk_request_set_state(request, KLUNK_RS_STDERR);
-			}
-			else if (type == FCGI_END_REQUEST) {
-				klunk_request_set_state(request, KLUNK_RS_FINISHED);
-			}
-		}
 		result = klunk_prepare_header(request, &header);
 	}
 	if (result == E_SUCCESS) {
@@ -238,6 +216,27 @@ int32_t klunk_write_record(klunk_context_t *ctx, klunk_request_t *request
 			}
 		}
 		else {
+			if (len == 0) {
+				if (type == FCGI_STDOUT) {
+					klunk_request_set_state(request, KLUNK_RS_STDOUT);
+					klunk_request_set_state(request, KLUNK_RS_STDOUT_DONE);
+				}
+				else if (type == FCGI_STDERR) {
+					klunk_request_set_state(request, KLUNK_RS_STDERR);
+					klunk_request_set_state(request, KLUNK_RS_STDERR_DONE);
+				}
+			}
+			else {
+				if (type == FCGI_STDOUT) {
+					klunk_request_set_state(request, KLUNK_RS_STDOUT);
+				}
+				else if (type == FCGI_STDERR) {
+					klunk_request_set_state(request, KLUNK_RS_STDERR);
+				}
+				else if (type == FCGI_END_REQUEST) {
+					klunk_request_set_state(request, KLUNK_RS_FINISHED);
+				}
+			}
 			result = len;
 		}
 	}
@@ -671,12 +670,12 @@ int32_t klunk_finish(klunk_context_t *ctx, const uint16_t request_id)
 	}
 	if (state > 0) {
 		/* Finish any outstanding stdout operations */
-		if ((state & KLUNK_RS_STDOUT) ^ (state & KLUNK_RS_STDOUT_DONE)) {
+		if (((state & KLUNK_RS_STDOUT) > 0) ^ ((state & KLUNK_RS_STDOUT_DONE) > 0)) {
 			result = klunk_stdout(ctx, request, 0, 0);
 		}
 		if (result >= 0) {
 			/* Finish any outstanding stderr operations */
-			if ((state & KLUNK_RS_STDERR) ^ (state & KLUNK_RS_STDERR_DONE)) {
+			if (((state & KLUNK_RS_STDERR) > 0) ^ ((state & KLUNK_RS_STDERR_DONE) > 0)) {
 				result = klunk_stderr(ctx, request, 0, 0);
 			}
 		}
