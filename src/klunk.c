@@ -309,7 +309,6 @@ int32_t klunk_process_input_buffer(klunk_context_t *ctx)
 
 		buffer_length = buffer_used(ctx->input);
 		buffer_data = buffer_peek(ctx->input);
-		bytes_used = 0;
 		switch (ctx->current_header->type) {
 			case FCGI_BEGIN_REQUEST:
 				result = klunk_begin_request(ctx, buffer_data, buffer_length);
@@ -380,52 +379,54 @@ int32_t klunk_process_input(klunk_context_t *ctx, const char *data, const size_t
 	length = (int32_t)len;
 	ptr = data;
 
-	/* Try to read header if neccesary */
-	if (ctx->read_state == 0) {
-		result = klunk_read_header(ctx->current_header, ptr, length);
+	while (length > 0) {
+		/* Try to read header if neccesary */
+		if (ctx->read_state == 0) {
+			result = klunk_read_header(ctx->current_header, ptr, length);
+			if (result == E_SUCCESS) {
+				length -= sizeof(fcgi_record_header_t);
+				ptr += sizeof(fcgi_record_header_t);
+				ctx->read_bytes = 0;
+				ctx->read_state = 1;
+			}
+		}
+		content_length = ctx->current_header->content_length;
+		padding_length = ctx->current_header->padding_length;
+		bytes_write = 0;
 		if (result == E_SUCCESS) {
-			length -= sizeof(fcgi_record_header_t);
-			ptr += sizeof(fcgi_record_header_t);
-			ctx->read_bytes = 0;
-			ctx->read_state = 1;
-		}
-	}
-	content_length = ctx->current_header->content_length;
-	padding_length = ctx->current_header->padding_length;
-	bytes_write = 0;
-	if (result == E_SUCCESS) {
-		/* Try to write content data to buffer */
-		bytes_left = content_length - ctx->read_bytes;
-		if (bytes_left > 0) {
-			bytes_write = bytes_left > length ? length : bytes_left;
-			result = buffer_write(ctx->input, ptr, bytes_write);
-			result = (result == bytes_write) ? E_SUCCESS : E_WRITE_FAILED;
-		}
-	}
-	if (result == E_SUCCESS) {
-		/* Update incoming data length ... whatever... */
-		ptr += bytes_write;
-		length -= bytes_write;
-		ctx->read_bytes += bytes_write;
-		/* Check if all content has been read */
-		if (ctx->read_bytes >= content_length) {
-			/* Check if all incoming data has been read */
-			bytes_left = (content_length + padding_length) - ctx->read_bytes;
+			/* Try to write content data to buffer */
+			bytes_left = content_length - ctx->read_bytes;
 			if (bytes_left > 0) {
-				/* Discard of padding */
 				bytes_write = bytes_left > length ? length : bytes_left;
-				ptr += bytes_write;
-				length -= bytes_write;
-				ctx->read_bytes += bytes_write;
-				/* Update counter */
+				result = buffer_write(ctx->input, ptr, bytes_write);
+				result = (result == bytes_write) ? E_SUCCESS : E_WRITE_FAILED;
+			}
+		}
+		if (result == E_SUCCESS) {
+			/* Update incoming data length ... whatever... */
+			ptr += bytes_write;
+			length -= bytes_write;
+			ctx->read_bytes += bytes_write;
+			/* Check if all content has been read */
+			if (ctx->read_bytes >= content_length) {
+				/* Check if all incoming data has been read */
 				bytes_left = (content_length + padding_length) - ctx->read_bytes;
-			}
-			/* Check if all incoming data has been read */
-			if (bytes_left == 0) {
-				result = klunk_process_input_buffer(ctx);
-				ctx->read_state = 0;
-			}
-		}	
+				if (bytes_left > 0) {
+					/* Discard of padding */
+					bytes_write = bytes_left > length ? length : bytes_left;
+					ptr += bytes_write;
+					length -= bytes_write;
+					ctx->read_bytes += bytes_write;
+					/* Update counter */
+					bytes_left = (content_length + padding_length) - ctx->read_bytes;
+				}
+				/* Check if all incoming data has been read */
+				if (bytes_left == 0) {
+					result = klunk_process_input_buffer(ctx);
+					ctx->read_state = 0;
+				}
+			}	
+		}
 	}
 	return result;
 }
@@ -546,9 +547,6 @@ int32_t klunk_set_file_descriptor(klunk_context_t *ctx, int32_t fd)
 	if (ctx == 0) {
 		return E_INVALID_OBJECT;
 	}
-	if (fd < 0) {
-		return E_INVALID_ARGUMENT;
-	}
 	ctx->file_descriptor = fd;
 	return E_SUCCESS;
 }
@@ -599,7 +597,7 @@ int32_t klunk_read(klunk_context_t *ctx)
 		return E_INVALID_OBJECT;
 	}
 	if (ctx->file_descriptor < 0) {
-		return E_INVALID_HANDLE;
+		return E_INVALID_FILE_HANDLE;
 	}
 	result = read(ctx->file_descriptor, ctx->read_buffer, ctx->read_buffer_len);
 	if (result >= 0) {
@@ -616,6 +614,10 @@ int32_t klunk_write(klunk_context_t *ctx, const uint16_t request_id
 {
 	int32_t result = E_SUCCESS;
 	klunk_request_t *request = 0;
+
+	if (ctx == 0) {
+		return E_INVALID_OBJECT;
+	}
 
 	request = klunk_find_request(ctx, request_id);
 	if (request == 0) {
@@ -634,6 +636,10 @@ int32_t klunk_write_error(klunk_context_t *ctx, const uint16_t request_id
 	int32_t result = E_SUCCESS;
 	klunk_request_t *request = 0;
 
+	if (ctx == 0) {
+		return E_INVALID_OBJECT;
+	}
+
 	request = klunk_find_request(ctx, request_id);
 	if (request == 0) {
 		result = E_REQUEST_NOT_FOUND;
@@ -650,6 +656,10 @@ int32_t klunk_finish(klunk_context_t *ctx, const uint16_t request_id)
 	int32_t result = E_SUCCESS;
 	int32_t state = E_SUCCESS;
 	klunk_request_t *request = 0;
+
+	if (ctx == 0) {
+		return E_INVALID_OBJECT;
+	}
 
 	request = klunk_find_request(ctx, request_id);
 
