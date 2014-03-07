@@ -124,12 +124,12 @@ int32_t buffer_write(buffer_t *buf, const char *data, const size_t len)
 	return len;
 }
 
-const char* buffer_peek(buffer_t *buf)
+char* buffer_peek(buffer_t *buf)
 {
 	if (buf == 0) {
 		return 0;
 	}
-	if (buf->used == 0) {
+	if (buf->size == 0) {
 		return 0;
 	}
 	return buf->data;
@@ -163,4 +163,9 @@ int32_t buffer_reset(buffer_t *buf)
 		return -1;
 	}
 	return 0;
+}
+
+int32_t buffer_reserve(buffer_t *buf, const size_t len)
+{
+	return buffer_resize(buf, len);
 }

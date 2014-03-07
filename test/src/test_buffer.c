@@ -88,7 +88,7 @@ void buffer_test()
 		const char *data = 0;
 
 		data = buffer_peek(buffer);
-		TEST_ASSERT_EQUAL(data, 0);
+		TEST_ASSERT_NOT_EQUAL(data, 0);
 
 		/* Write some */
 		

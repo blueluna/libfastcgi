@@ -8,19 +8,6 @@
 #include <unistd.h>
 #include <errno.h>
 
-/* Calculate the size aligned to a 8-byte border */
-uint16_t klunk_size8b(const uint16_t size)
-{
-	uint16_t s;
-	if ((size % 8) == 0) {
-		return size;
-	}
-	else {
-		s = ((size / 8) + 1) * 8;
-		return s;
-	}
-}
-
 klunk_request_t* klunk_find_request(klunk_context_t *ctx, const uint16_t id)
 {
 	if (ctx == 0 || ctx->requests == 0 || ctx->requests->items == 0) {
@@ -40,8 +27,8 @@ klunk_request_t* klunk_find_request(klunk_context_t *ctx, const uint16_t id)
 	return request;
 }
 
-int32_t klunk_read_header(fcgi_record_header_t *header, const char *data
-	, const size_t len)
+int32_t klunk_read_header(fcgi_record_header_t *header
+	, const char *data, const size_t len)
 {
 	int32_t result = E_SUCCESS;
 	if (len >= sizeof(fcgi_record_header_t)) {
@@ -55,7 +42,8 @@ int32_t klunk_read_header(fcgi_record_header_t *header, const char *data
 	return result;
 }
 
-int32_t klunk_begin_request(klunk_context_t *ctx, const char *data, const size_t len)
+int32_t klunk_begin_request(klunk_context_t *ctx
+	, const char *data, const size_t len)
 {
 	int32_t result = E_SUCCESS;
 	fcgi_record_begin_t record = {0};
@@ -84,7 +72,8 @@ int32_t klunk_begin_request(klunk_context_t *ctx, const char *data, const size_t
 	return result;
 }
 
-int32_t klunk_params(klunk_request_t *request, const char *data, const size_t len)
+int32_t klunk_params(klunk_request_t *request
+	, const char *data, const size_t len)
 {
 	int32_t n = 0;
 	int32_t str_len[2];
@@ -156,132 +145,21 @@ int32_t klunk_params(klunk_request_t *request, const char *data, const size_t le
 	return bytes_used;
 }
 
-int32_t klunk_prepare_header(klunk_request_t *request
-	, fcgi_record_header_t *header)
-{
-	int32_t result = E_SUCCESS;
-	if (header == 0) {
-		return E_INVALID_OBJECT;
-	}
-	else {
-		header->version = FCGI_VERSION_1;
-		header->type = FCGI_UNKNOWN_TYPE;
-		header->request_id = htons(request->id);
-		header->content_length = 0;
-		header->padding_length = 0;
-		header->reserved = 0;
-	}
-	return result;
-}
-
-int32_t klunk_write_record(klunk_context_t *ctx, klunk_request_t *request
-	, const uint8_t type, const char *data, const uint16_t len)
-{
-	int32_t result = E_SUCCESS;
-	fcgi_record_header_t header = {0};
-	uint16_t padding_len;
-	const char *padding = "\0\0\0\0\0\0\0\0";
-
-	if (ctx->file_descriptor < 0) {
-		result = E_INVALID_FILE_HANDLE;
-	}
-	if (result == E_SUCCESS) {
-		result = klunk_prepare_header(request, &header);
-	}
-	if (result == E_SUCCESS) {
-		/* Prepare header for user content */
-		header.type = type;
-		header.content_length = htons(len);
-		padding_len = klunk_size8b(len) - len;
-		header.padding_length = (uint8_t)(padding_len);
-		/* Write header */
-		result = write(ctx->file_descriptor, &header, sizeof(fcgi_record_header_t));
-		if (result == sizeof(fcgi_record_header_t)) {
-			/* Write data */
-			result = write(ctx->file_descriptor, data, len);
-			if (result == len) {
-				/* Write padding */
-				result = write(ctx->file_descriptor, padding, padding_len);
-				if (result == padding_len) {
-					result = E_SUCCESS;
-				}
-			}
-		}
-		if (result != E_SUCCESS) {
-			if (result < 0) {
-				result = E_OS_ERROR | errno;
-			}
-			else {
-				result = E_WRITE_FAILED;
-			}
-		}
-		else {
-			if (len == 0) {
-				if (type == FCGI_STDOUT) {
-					klunk_request_set_state(request, KLUNK_RS_STDOUT);
-					klunk_request_set_state(request, KLUNK_RS_STDOUT_DONE);
-				}
-				else if (type == FCGI_STDERR) {
-					klunk_request_set_state(request, KLUNK_RS_STDERR);
-					klunk_request_set_state(request, KLUNK_RS_STDERR_DONE);
-				}
-			}
-			else {
-				if (type == FCGI_STDOUT) {
-					klunk_request_set_state(request, KLUNK_RS_STDOUT);
-				}
-				else if (type == FCGI_STDERR) {
-					klunk_request_set_state(request, KLUNK_RS_STDERR);
-				}
-				else if (type == FCGI_END_REQUEST) {
-					klunk_request_set_state(request, KLUNK_RS_FINISHED);
-				}
-			}
-			result = len;
-		}
-	}
-
-	return result;
-}
-
-int32_t klunk_stdin(klunk_request_t *request, const char *data, const size_t len)
+int32_t klunk_stdin(klunk_request_t *request
+	, const char *input, const size_t input_len)
 {
 	int32_t result = E_SUCCESS;
 
-	if (len == 0) {
+	if (input_len == 0) {
 		klunk_request_set_state(request, KLUNK_RS_STDIN_DONE);
 	}
 	else {
 		klunk_request_set_state(request, KLUNK_RS_STDIN);
 	}
 
-	result = buffer_write(request->content, data, len);
+	result = buffer_write(request->content, input, input_len);
 
 	return result;
-}
-
-int32_t klunk_stdout(klunk_context_t *ctx, klunk_request_t *request
-	, const char *data, const uint16_t len)
-{
-	return klunk_write_record(ctx, request, FCGI_STDOUT, data, len);
-}
-
-int32_t klunk_stderr(klunk_context_t *ctx, klunk_request_t *request
-	, const char *data, const uint16_t len)
-{
-	return klunk_write_record(ctx, request, FCGI_STDERR, data, len);
-}
-
-int32_t klunk_end_record(klunk_context_t *ctx, klunk_request_t *request
-	, const uint32_t app_status, const uint8_t protocol_status)
-{
-	fcgi_record_end_t record = {
-		.app_status = app_status,
-		.protocol_status = protocol_status,
-		.reserved = {0}
-	};
-	return klunk_write_record(ctx, request, FCGI_END_REQUEST
-		, (const char*)&record, (uint16_t)sizeof(fcgi_record_end_t));
 }
 
 int32_t klunk_process_input_buffer(klunk_context_t *ctx)
@@ -364,7 +242,8 @@ int32_t klunk_process_input_buffer(klunk_context_t *ctx)
 	return result;
 }
 
-int32_t klunk_process_input(klunk_context_t *ctx, const char *data, const size_t len)
+int32_t klunk_process_input(klunk_context_t *ctx
+	, const char *data, const size_t len)
 {
 	int32_t length = 0;
 	const char *ptr = 0;
@@ -430,7 +309,8 @@ int32_t klunk_process_input(klunk_context_t *ctx, const char *data, const size_t
 	return result;
 }
 
-int32_t klunk_process_data(klunk_context_t *ctx, const char *data, const size_t len)
+int32_t klunk_process_data(klunk_context_t *ctx
+	, const char *data, const size_t len)
 {
 	if (ctx == 0) {
 		return E_INVALID_OBJECT;
@@ -472,21 +352,8 @@ klunk_context_t * klunk_create()
 		}
 	}
 	if (ctx != 0) {
-		ctx->output = buffer_create();
-		if (ctx->output == 0) {
-			buffer_destroy(ctx->input);
-			ctx->input = 0;
-			llist_destroy(ctx->requests);
-			ctx->requests = 0;
-			free(ctx);
-			ctx = 0;
-		}
-	}
-	if (ctx != 0) {
 		ctx->current_header = malloc(sizeof(fcgi_record_header_t));
 		if (ctx->current_header == 0) {
-			buffer_destroy(ctx->output);
-			ctx->input = 0;
 			buffer_destroy(ctx->input);
 			ctx->input = 0;
 			llist_destroy(ctx->requests);
@@ -501,8 +368,6 @@ klunk_context_t * klunk_create()
 		if (ctx->read_buffer == 0) {
 			free(ctx->current_header);
 			ctx->current_header = 0;
-			buffer_destroy(ctx->output);
-			ctx->input = 0;
 			buffer_destroy(ctx->input);
 			ctx->input = 0;
 			llist_destroy(ctx->requests);
@@ -512,7 +377,6 @@ klunk_context_t * klunk_create()
 		}
 	}
 	if (ctx != 0) {
-		ctx->file_descriptor = -1;
 		ctx->read_state = 0;
 		ctx->current_header->version = 0;
 		ctx->current_header->type = 0;
@@ -530,8 +394,6 @@ void klunk_destroy(klunk_context_t *ctx)
 		ctx->requests = 0;
 		buffer_destroy(ctx->input);
 		ctx->input = 0;
-		buffer_destroy(ctx->output);
-		ctx->output = 0;
 		free(ctx->current_header);
 		ctx->current_header = 0;
 		free(ctx->read_buffer);
@@ -539,26 +401,6 @@ void klunk_destroy(klunk_context_t *ctx)
 		ctx->read_buffer_len = 0;
 		free(ctx);
 	}
-}
-
-int32_t klunk_set_file_descriptor(klunk_context_t *ctx, int32_t fd)
-{
-	if (ctx == 0) {
-		return E_INVALID_OBJECT;
-	}
-	ctx->file_descriptor = fd;
-	return E_SUCCESS;
-}
-
-int32_t klunk_get_file_descriptor(klunk_context_t *ctx)
-{
-	if (ctx == 0) {
-		return E_INVALID_OBJECT;
-	}
-	if (ctx->file_descriptor < 0) {
-		return E_INVALID_FILE_HANDLE;
-	}
-	return ctx->file_descriptor;
 }
 
 int32_t klunk_current_request(klunk_context_t *ctx)
@@ -588,28 +430,18 @@ int32_t klunk_request_state(klunk_context_t *ctx, const uint16_t request_id)
 	return result;
 }
 
-int32_t klunk_read(klunk_context_t *ctx)
+int32_t klunk_read(klunk_context_t *ctx
+	, const char *input, const size_t input_len)
 {
-	int32_t result = E_SUCCESS;
-
 	if (ctx == 0) {
 		return E_INVALID_OBJECT;
 	}
-	if (ctx->file_descriptor < 0) {
-		return E_INVALID_FILE_HANDLE;
-	}
-	result = read(ctx->file_descriptor, ctx->read_buffer, ctx->read_buffer_len);
-	if (result >= 0) {
-		result = klunk_process_data(ctx, ctx->read_buffer, result);
-	}
-	else {
-		result = E_OS_ERROR | errno;
-	}
-	return result;
+	return klunk_process_data(ctx, input, input_len);
 }
 
-int32_t klunk_write(klunk_context_t *ctx, const uint16_t request_id
-	, const char *data, const size_t len)
+int32_t klunk_write_output(klunk_context_t *ctx
+	, const uint16_t request_id
+	, const char *input, const size_t input_len)
 {
 	int32_t result = E_SUCCESS;
 	klunk_request_t *request = 0;
@@ -623,14 +455,15 @@ int32_t klunk_write(klunk_context_t *ctx, const uint16_t request_id
 		result = E_REQUEST_NOT_FOUND;
 	}
 	else {
-		result = klunk_stdout(ctx, request, data, len);
+		result = klunk_request_write_output(request, input, input_len);
 	}
 	
 	return result;
 }
 
-int32_t klunk_write_error(klunk_context_t *ctx, const uint16_t request_id
-	, const char *data, const size_t len)
+int32_t klunk_write_error(klunk_context_t *ctx
+	, const uint16_t request_id
+	, const char *input, const size_t input_len)
 {
 	int32_t result = E_SUCCESS;
 	klunk_request_t *request = 0;
@@ -644,7 +477,7 @@ int32_t klunk_write_error(klunk_context_t *ctx, const uint16_t request_id
 		result = E_REQUEST_NOT_FOUND;
 	}
 	else {
-		result = klunk_stderr(ctx, request, data, len);
+		result = klunk_request_write_error(request, input, input_len);
 	}
 	
 	return result;
@@ -652,8 +485,22 @@ int32_t klunk_write_error(klunk_context_t *ctx, const uint16_t request_id
 
 int32_t klunk_finish(klunk_context_t *ctx, const uint16_t request_id)
 {
+	klunk_request_t *request = 0;
+	if (ctx == 0) {
+		return E_INVALID_OBJECT;
+	}
+	request = klunk_find_request(ctx, request_id);
+	if (request == 0) {
+		return E_REQUEST_NOT_FOUND;
+	}
+	return klunk_request_finish(request, FCGI_REQUEST_COMPLETE, 0);
+}
+
+int32_t klunk_write(klunk_context_t *ctx
+	, char *output, const size_t output_len, const uint16_t request_id)
+{
 	int32_t result = E_SUCCESS;
-	int32_t state = E_SUCCESS;
+	int32_t state = 0;
 	klunk_request_t *request = 0;
 
 	if (ctx == 0) {
@@ -666,27 +513,12 @@ int32_t klunk_finish(klunk_context_t *ctx, const uint16_t request_id)
 		result = E_REQUEST_NOT_FOUND;
 	}
 	else {
-		state = klunk_request_get_state(request, 0);
+		result = klunk_request_read(request, output, output_len);
 	}
-	if (state > 0) {
-		/* Finish any outstanding stdout operations */
-		if (((state & KLUNK_RS_STDOUT) > 0) ^ ((state & KLUNK_RS_STDOUT_DONE) > 0)) {
-			result = klunk_stdout(ctx, request, 0, 0);
-		}
-		if (result >= 0) {
-			/* Finish any outstanding stderr operations */
-			if (((state & KLUNK_RS_STDERR) > 0) ^ ((state & KLUNK_RS_STDERR_DONE) > 0)) {
-				result = klunk_stderr(ctx, request, 0, 0);
-			}
-		}
-		if (result >= 0) {
-			/* Send finish record */
-			result = klunk_end_record(ctx, request, 0, FCGI_REQUEST_COMPLETE);
-		}
-		if (result >= 0) {
-			/* If all goes well, remove the request */
-			llist_remove(ctx->requests, request);
-			result = E_SUCCESS;
+	if (result >= 0) {
+		state = klunk_request_get_state(request, 0);
+		if ((state & KLUNK_RS_WRITE_FINISHED)) {
+			klunk_request_destroy(request);
 		}
 	}
 	return result;

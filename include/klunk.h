@@ -22,7 +22,6 @@ typedef struct klunk_context_  {
 	int32_t					file_descriptor;
 	llist_t					*requests;
 	buffer_t				*input;
-	buffer_t				*output;
 	fcgi_record_header_t	*current_header;
 	uint8_t					read_state;
 	int32_t					read_bytes;
@@ -35,17 +34,6 @@ klunk_context_t* klunk_create();
 
 /* Destroy the klunk context */
 void klunk_destroy(klunk_context_t *ctx);
-
-/* Set the file descriptor that should be used when reading and writing
- * FCGI requests/data.
- */
-int32_t klunk_set_file_descriptor(klunk_context_t *ctx, int32_t fd);
-
-/* Get the registered file descriptor 
- * Negative return value means error or that the file descriptor is
- * uninitialized.
- */
-int32_t klunk_get_file_descriptor(klunk_context_t *ctx);
 
 /* Get the current request id.
  * Negative return value means error.
@@ -64,24 +52,36 @@ int32_t klunk_request_state(klunk_context_t *ctx, const uint16_t request_id);
  * KLUNK_STDIN_DONE, A request have received all data.
  * Negative return value means error.
  */
-int32_t klunk_read(klunk_context_t *ctx);
+int32_t klunk_read(klunk_context_t *ctx
+	, const char *input, const size_t input_len);
 
 /* Write data to the web server through the file descriptor.
  * Negative return value means error.
  */
-int32_t klunk_write(klunk_context_t *ctx, const uint16_t request_id
-	, const char *data, const size_t len);
+int32_t klunk_write_output(klunk_context_t *ctx
+	, const uint16_t request_id
+	, const char *input, const size_t input_len);
 
 /* Write error data to the web server through the file descriptor.
  * Negative return value means error.
  */
-int32_t klunk_write_error(klunk_context_t *ctx, const uint16_t request_id
-	, const char *data, const size_t len);
+int32_t klunk_write_error(klunk_context_t *ctx
+	, const uint16_t request_id
+	, const char *input, const size_t input_len);
 
 /* Finish the requests and remove the request object.
  * Negative return value means error.
  */
 int32_t klunk_finish(klunk_context_t *ctx, const uint16_t request_id);
+
+/* Finish the requests and remove the request object.
+ * Negative return value means error.
+ */
+int32_t klunk_write(klunk_context_t *ctx
+	, char *output, const size_t output_len
+	, const uint16_t request_id);
+
+int32_t klunk_free_request(klunk_context_t *ctx, const uint16_t request_id);
 
 /* Find and return the request with the supplied id. return zero if the 
  * request object wasn't found.
