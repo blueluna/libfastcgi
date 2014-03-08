@@ -517,8 +517,8 @@ int32_t klunk_write(klunk_context_t *ctx
 	}
 	if (result >= 0) {
 		state = klunk_request_get_state(request, 0);
-		if ((state & KLUNK_RS_WRITE_FINISHED)) {
-			klunk_request_destroy(request);
+		if ((state & KLUNK_RS_FINISHED)) {
+			llist_remove(ctx->requests, request);
 		}
 	}
 	return result;

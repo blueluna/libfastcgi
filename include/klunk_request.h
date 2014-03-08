@@ -21,8 +21,8 @@ enum {
 	KLUNK_RS_STDOUT_DONE		= (1 << 6),
 	KLUNK_RS_STDERR				= (1 << 7),
 	KLUNK_RS_STDERR_DONE		= (1 << 8),
-	KLUNK_RS_FINISHED			= (1 << 9),
-	KLUNK_RS_WRITE_FINISHED		= (1 << 10)
+	KLUNK_RS_FINISH				= (1 << 9),
+	KLUNK_RS_FINISHED			= (1 << 10)
 };
 
 typedef struct klunk_request_  {

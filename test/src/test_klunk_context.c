@@ -216,6 +216,7 @@ int32_t print_record(fcgi_record *rec)
 	if (rec == 0) {
 		return E_INVALID_ARGUMENT;
 	}
+	printf("-- Record ----------------------------\n");
 	printf("       Version: %u\n", rec->header.version);
 	printf("          Type: %s (%u)\n", type_as_string(rec->header.type), rec->header.type);
 	printf("    Request Id: %u\n", rec->header.request_id);
@@ -229,7 +230,6 @@ void klunk_context_test()
 	int32_t result = E_SUCCESS;
 	int32_t data_size = 0;
 	int32_t params_size = 0;
-	int32_t offset = 0;
 	uint16_t request_id = 1;
 	int str_result = 0;
 	char *data = 0;
@@ -389,6 +389,7 @@ void klunk_context_test()
 		klunk_write_output(ctx, request_id, params, 18);
 
 		data_size = klunk_write(ctx, data, 1024, request_id);
+		TEST_ASSERT_GT(data_size, 0);
 		result = parse_record(data, data_size, &rec);
 		if (result > 0) {
 			print_record(&rec);
@@ -404,8 +405,10 @@ void klunk_context_test()
 		klunk_write_error(ctx, request_id, params, 18);
 
 		data_size = klunk_write(ctx, data, 1024, request_id);
+		TEST_ASSERT_GT(data_size, 0);
 		result = parse_record(data, data_size, &rec);
 		if (result > 0) {
+			print_record(&rec);
 			TEST_ASSERT_EQUAL(rec.header.version, 1);
 			TEST_ASSERT_EQUAL(rec.header.type, 7);
 			TEST_ASSERT_EQUAL(rec.header.request_id, 1);
@@ -418,8 +421,29 @@ void klunk_context_test()
 		klunk_write_output(ctx, request_id, 0, 0);
 
 		data_size = klunk_write(ctx, data, 1024, request_id);
+		TEST_ASSERT_EQUAL(data_size, 0);
+
+		result = klunk_finish(ctx, request_id);
+		TEST_ASSERT_TRUE(result >= E_SUCCESS);
+
+		data_size = klunk_write(ctx, data, 1024, request_id);
+
+		TEST_ASSERT_GT(data_size, 0);
 		result = parse_record(data, data_size, &rec);
 		if (result > 0) {
+			print_record(&rec);
+			TEST_ASSERT_EQUAL(rec.header.version, 1);
+			TEST_ASSERT_EQUAL(rec.header.type, 7);
+			TEST_ASSERT_EQUAL(rec.header.request_id, 1);
+			TEST_ASSERT_EQUAL(rec.header.content_len, 0);
+			TEST_ASSERT_EQUAL(rec.header.padding_len, 0);
+		}
+
+		data_size = klunk_write(ctx, data, 1024, request_id);
+
+		result = parse_record(data, data_size, &rec);
+		if (result > 0) {
+			print_record(&rec);
 			TEST_ASSERT_EQUAL(rec.header.version, 1);
 			TEST_ASSERT_EQUAL(rec.header.type, 6);
 			TEST_ASSERT_EQUAL(rec.header.request_id, 1);
@@ -427,33 +451,21 @@ void klunk_context_test()
 			TEST_ASSERT_EQUAL(rec.header.padding_len, 0);
 		}
 
-		result = klunk_finish(ctx, request_id);
-		TEST_ASSERT_TRUE(result >= E_SUCCESS);
-
-		offset = 0;
 		data_size = klunk_write(ctx, data, 1024, request_id);
+
 		result = parse_record(data, data_size, &rec);
 		if (result > 0) {
-			offset += result;
-			TEST_ASSERT_EQUAL(rec.header.version, 1);
-			TEST_ASSERT_EQUAL(rec.header.type, 7);
-			TEST_ASSERT_EQUAL(rec.header.request_id, 1);
-			TEST_ASSERT_EQUAL(rec.header.content_len, 0);
-			TEST_ASSERT_EQUAL(rec.header.padding_len, 0);
-			result = parse_record(data + offset, data_size - offset, &rec);
-		}
-		if (result > 0) {
-			offset += result;
+			print_record(&rec);
 			TEST_ASSERT_EQUAL(rec.header.version, 1);
 			TEST_ASSERT_EQUAL(rec.header.type, 3);
 			TEST_ASSERT_EQUAL(rec.header.request_id, 1);
 			TEST_ASSERT_EQUAL(rec.header.content_len, 8);
 			TEST_ASSERT_EQUAL(rec.header.padding_len, 0);
-			result = parse_record(data + offset, data_size - offset, &rec);
 			memcpy(params, "\0\0\0\0\0\0\0\0", 8);
 			result = memcmp(params, rec.content, rec.header.content_len);
 			TEST_ASSERT_EQUAL(result, 0);
 		}
+
 		TEST_ASSERT_EQUAL(result, 0);
 
 		request = klunk_find_request(ctx, request_id);

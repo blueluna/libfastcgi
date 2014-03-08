@@ -125,6 +125,9 @@ int32_t klunk_request_set_state(klunk_request_t *request, const uint16_t state)
 		case KLUNK_RS_STDERR_DONE:
 			request->state |= KLUNK_RS_STDERR_DONE;
 			break;
+		case KLUNK_RS_FINISH:
+			request->state |= KLUNK_RS_FINISH;
+			break;
 		case KLUNK_RS_FINISHED:
 			request->state |= KLUNK_RS_FINISHED;
 			break;
@@ -172,6 +175,7 @@ int32_t klunk_request_generate_record(klunk_request_t *request
 	uint16_t padding_len;
 	const char *padding = "\0\0\0\0\0\0\0\0";
 	char *ptr = output;
+	int32_t finish = 0;
 
 	if (request == 0) {
 		return E_INVALID_OBJECT;
@@ -179,19 +183,19 @@ int32_t klunk_request_generate_record(klunk_request_t *request
 	if (output == 0) {
 		return E_INVALID_ARGUMENT;
 	}
-	if ((request->state & KLUNK_RS_WRITE_FINISHED)) {
+	if ((request->state & KLUNK_RS_FINISHED)) {
 		return E_INVALID_ARGUMENT;
 	}
-	if ((request->state & KLUNK_RS_FINISHED)) {
-		if (type == FCGI_STDOUT || type == FCGI_STDERR) {
+	finish = (request->state & KLUNK_RS_FINISH);
+	if (finish) {
+		if (input_len > 0 && (type == FCGI_STDOUT || type == FCGI_STDERR)) {
 			return E_INVALID_ARGUMENT;
 		}
 	}
-	if (type == FCGI_STDOUT && (request->state & KLUNK_RS_STDOUT_DONE)) {
-		return E_INVALID_ARGUMENT;
-	}
-	if (type == FCGI_STDERR && (request->state & KLUNK_RS_STDERR_DONE)) {
-		return E_INVALID_ARGUMENT;
+	else {
+		if (input_len == 0 && (type == FCGI_STDOUT || type == FCGI_STDERR)) {
+			return E_INVALID_ARGUMENT;
+		}
 	}
 
 	total_len = klunk_request_calculate_size(input_len);
@@ -233,7 +237,7 @@ int32_t klunk_request_generate_record(klunk_request_t *request
 				klunk_request_set_state(request, KLUNK_RS_STDERR);
 			}
 			else if (type == FCGI_END_REQUEST) {
-				klunk_request_set_state(request, KLUNK_RS_FINISHED);
+				klunk_request_set_state(request, KLUNK_RS_FINISH);
 			}
 		}
 		result = offset;
@@ -241,34 +245,23 @@ int32_t klunk_request_generate_record(klunk_request_t *request
 	return result;
 }
 
-int32_t klunk_request_write_record(klunk_request_t *request
+int32_t klunk_request_store(klunk_request_t *request
 	, const uint8_t type
 	, const char *input, const size_t input_len)
 {
-	int32_t result = E_SUCCESS;
-	int32_t total_len;
-	buffer_t *output = 0;
+	buffer_t *buf = 0;
 
-	total_len = klunk_request_calculate_size(input_len);
 	if (type == FCGI_STDOUT) {
-		output = request->output;
+		buf = request->output;
 	}
 	else if (type == FCGI_STDERR) {
-		output = request->error;
+		buf = request->error;
+	}
+	else {
+		return E_INVALID_ARGUMENT;
 	}
 
-	if ((int32_t)buffer_free(output) < total_len) {
-		result = buffer_reserve(output, buffer_used(output) + total_len);
-	}
-	if (result >= 0) {
-		result = klunk_request_generate_record(request
-			, buffer_peek(output), buffer_free(output)
-			, type
-			, input, input_len
-			);
-	}
-
-	return result;
+	return buffer_write(buf, input, input_len);
 }
 
 int32_t klunk_request_write_output(klunk_request_t *request
@@ -277,7 +270,7 @@ int32_t klunk_request_write_output(klunk_request_t *request
 	if (request == 0) {
 		return E_INVALID_OBJECT;
 	}
-	return klunk_request_write_record(request, FCGI_STDOUT, input, input_len);
+	return klunk_request_store(request, FCGI_STDOUT, input, input_len);
 }
 
 int32_t klunk_request_write_error(klunk_request_t *request
@@ -286,13 +279,17 @@ int32_t klunk_request_write_error(klunk_request_t *request
 	if (request == 0) {
 		return E_INVALID_OBJECT;
 	}
-	return klunk_request_write_record(request, FCGI_STDERR, input, input_len);	
+	return klunk_request_store(request, FCGI_STDERR, input, input_len);	
 }
 
 int32_t klunk_request_read(klunk_request_t *request
 	, char *output, const size_t output_len)
 {
 	int32_t result = E_SUCCESS;
+	size_t stored_len = 0;
+	size_t content_len = 0;
+	size_t use_len = 0;
+	int32_t finish = 0;
 
 	if (request == 0) {
 		return E_INVALID_OBJECT;
@@ -300,14 +297,46 @@ int32_t klunk_request_read(klunk_request_t *request
 	if (output == 0) {
 		return E_INVALID_ARGUMENT;
 	}
-	
-	if ((request->state & KLUNK_RS_STDOUT) && (request->state & KLUNK_RS_STDOUT_DONE)) {
-		result = buffer_read(request->output, output, output_len);
+	if ((request->state & KLUNK_RS_FINISHED)) {
+		return E_SUCCESS;
 	}
-	else if ((request->state & KLUNK_RS_STDERR) && (request->state & KLUNK_RS_STDERR_DONE)) {
-		result = buffer_read(request->error, output, output_len);
+
+	finish = (request->state & KLUNK_RS_FINISH) > 0;
+	content_len = output_len - sizeof(fcgi_record_header_t);
+
+	stored_len = buffer_used(request->error);
+	if (stored_len > 0) {
+		use_len = stored_len > content_len ? content_len : stored_len;
+		result = klunk_request_generate_record(request, output, output_len
+			, FCGI_STDERR, buffer_peek(request->error), use_len);
+		if (result > 0) {
+			use_len = (size_t)result > stored_len ? stored_len : (size_t)result;
+			buffer_read(request->error, 0, use_len);
+		}
+		return result;
 	}
-	else if ((request->state & KLUNK_RS_FINISHED)) {
+	else if (finish && ((request->state & KLUNK_RS_STDERR_DONE) == 0)) {
+		return klunk_request_generate_record(request, output, output_len
+			, FCGI_STDERR, 0, 0);
+	}
+
+	stored_len = buffer_used(request->output);
+	if (stored_len > 0) {
+		use_len = stored_len > content_len ? content_len : stored_len;
+		result = klunk_request_generate_record(request, output, output_len
+			, FCGI_STDOUT, buffer_peek(request->output), use_len);
+		if (result > 0) {
+			use_len = (size_t)result > stored_len ? stored_len : (size_t)result;
+			buffer_read(request->output, 0, use_len);
+		}
+		return result;
+	}
+	else if (finish && ((request->state & KLUNK_RS_STDOUT_DONE) == 0)) {
+		return klunk_request_generate_record(request, output, output_len
+			, FCGI_STDOUT, 0, 0);
+	}
+
+	if (finish) {
 		fcgi_record_end_t record = {
 			.app_status = request->app_status,
 			.protocol_status = request->protocol_status,
@@ -317,7 +346,7 @@ int32_t klunk_request_read(klunk_request_t *request
 			, FCGI_END_REQUEST
 			, (const char*)&record, (uint16_t)sizeof(fcgi_record_end_t));
 		if (result >= 0) {
-			return klunk_request_set_state(request, KLUNK_RS_WRITE_FINISHED);
+			klunk_request_set_state(request, KLUNK_RS_FINISHED);
 		}
 	}
 
@@ -332,5 +361,6 @@ int32_t klunk_request_finish(klunk_request_t *request
 	}
 	request->protocol_status = protocol_status;
 	request->app_status = app_status;
-	return klunk_request_set_state(request, KLUNK_RS_FINISHED);
+	klunk_request_set_state(request, KLUNK_RS_FINISH);
+	return E_SUCCESS;
 }

@@ -69,12 +69,12 @@ int32_t klunk_write_error(klunk_context_t *ctx
 	, const uint16_t request_id
 	, const char *input, const size_t input_len);
 
-/* Finish the requests and remove the request object.
+/* 
  * Negative return value means error.
  */
 int32_t klunk_finish(klunk_context_t *ctx, const uint16_t request_id);
 
-/* Finish the requests and remove the request object.
+/* 
  * Negative return value means error.
  */
 int32_t klunk_write(klunk_context_t *ctx
