@@ -2,7 +2,7 @@
 #include <assert.h>
 
 #include "testcase.h"
-#include "fcgi_param.h"
+#include "klunk_param.h"
 #include "klunk_request.h"
 #include "errorcodes.h"
 #include "test_klunk_request.h"

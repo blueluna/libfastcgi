@@ -9,7 +9,7 @@
 #include "klunk.h"
 #include "klunk_private.h"
 #include "klunk_request.h"
-#include "fcgi_param.h"
+#include "klunk_param.h"
 #include "errorcodes.h"
 #include "test_klunk_context.h"
 
@@ -329,7 +329,7 @@ void klunk_context_test()
 		TEST_ASSERT_EQUAL(result, (KLUNK_RS_NEW | KLUNK_RS_PARAMS));
 
 		request = klunk_find_request(ctx, request_id);
-		fcgi_param_t *param = (fcgi_param_t*)(request->params->items->data);
+		klunk_param_t *param = (klunk_param_t*)(request->params->items->data);
 		
 		str_result = strcmp(param->name, "hello");
 		TEST_ASSERT_EQUAL(str_result, 0);
