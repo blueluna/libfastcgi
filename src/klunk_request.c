@@ -7,7 +7,6 @@
 #include "fcgi_param.h"
 #include "fcgi_protocol.h"
 
-
 klunk_request_t* klunk_request_create()
 {
 	klunk_request_t *request = 0;
@@ -173,7 +172,6 @@ int32_t klunk_request_generate_record(klunk_request_t *request
 	uint16_t padding_len;
 	const char *padding = "\0\0\0\0\0\0\0\0";
 	char *ptr = output;
-	int32_t finish = 0;
 
 	if (request == 0) {
 		return E_INVALID_OBJECT;
@@ -183,17 +181,6 @@ int32_t klunk_request_generate_record(klunk_request_t *request
 	}
 	if ((request->state & KLUNK_RS_FINISHED)) {
 		return E_INVALID_ARGUMENT;
-	}
-	finish = (request->state & KLUNK_RS_FINISH);
-	if (finish) {
-		if (input_len > 0 && (type == FCGI_STDOUT || type == FCGI_STDERR)) {
-			return E_INVALID_ARGUMENT;
-		}
-	}
-	else {
-		if (input_len == 0 && (type == FCGI_STDOUT || type == FCGI_STDERR)) {
-			return E_INVALID_ARGUMENT;
-		}
 	}
 
 	total_len = klunk_request_calculate_size(input_len);
@@ -321,7 +308,8 @@ int32_t klunk_request_read(klunk_request_t *request
 		}
 		return result;
 	}
-	else if (finish && ((request->state & KLUNK_RS_STDERR_DONE) == 0)) {
+	else if (finish && (request->state & KLUNK_RS_STDERR)
+		&& ((request->state & KLUNK_RS_STDERR_DONE) == 0)) {
 		return klunk_request_generate_record(request, output, output_len
 			, FCGI_STDERR, 0, 0);
 	}
@@ -342,7 +330,8 @@ int32_t klunk_request_read(klunk_request_t *request
 		}
 		return result;
 	}
-	else if (finish && ((request->state & KLUNK_RS_STDOUT_DONE) == 0)) {
+	else if (finish && (request->state & KLUNK_RS_STDOUT)
+		&& ((request->state & KLUNK_RS_STDOUT_DONE) == 0)) {
 		return klunk_request_generate_record(request, output, output_len
 			, FCGI_STDOUT, 0, 0);
 	}
