@@ -3,21 +3,21 @@
  * Licensed under the MIT license.
  */
 
-#ifndef FCGI_PARAM_H
-#define FCGI_PARAM_H
+#ifndef KLUNK_PARAM_H
+#define KLUNK_PARAM_H
 
 #include <stdlib.h>
 
-typedef struct fcgi_param_  {
+typedef struct klunk_param_  {
 	char		*name;
 	char		*value;
-} fcgi_param_t;
+} klunk_param_t;
 
 /* Create a param "object" with the provided key/value pair */
-fcgi_param_t* fcgi_param_create(const char *name, const size_t name_len
+klunk_param_t* klunk_param_create(const char *name, const size_t name_len
 	, const char *value, const size_t value_len);
 
 /* Destroy a param "object" */
-void fcgi_param_destroy(fcgi_param_t *param);
+void klunk_param_destroy(klunk_param_t *param);
 
-#endif /* FCGI_PARAM_H */
+#endif /* KLUNK_PARAM_H */

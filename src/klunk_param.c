@@ -1,11 +1,11 @@
-#include "fcgi_param.h"
+#include "klunk_param.h"
 #include <string.h>
 
-fcgi_param_t* fcgi_param_create(const char *name, const size_t name_len
+klunk_param_t* klunk_param_create(const char *name, const size_t name_len
 	, const char *value, const size_t value_len)
 {
-	fcgi_param_t *param = 0;
-	param = malloc(sizeof(fcgi_param_t));
+	klunk_param_t *param = 0;
+	param = malloc(sizeof(klunk_param_t));
 	if (param != 0) {
 		param->name = malloc(name_len + 1);
 		param->value = malloc(value_len + 1);
@@ -29,7 +29,7 @@ fcgi_param_t* fcgi_param_create(const char *name, const size_t name_len
 	return param;
 }
 
-void fcgi_param_destroy(fcgi_param_t *param)
+void klunk_param_destroy(klunk_param_t *param)
 {
 	if (param != 0) {
 		free(param->name);

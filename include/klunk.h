@@ -11,6 +11,7 @@
 #include "buffer.h"
 #include "fcgi_protocol.h"
 #include "klunk_request.h"
+#include "klunk_param.h"
 
 typedef struct klunk_context_  {
 	int32_t					file_descriptor;

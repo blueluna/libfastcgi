@@ -4,7 +4,7 @@
 #include "errorcodes.h"
 #include "klunk_request.h"
 #include "klunk_utils.h"
-#include "fcgi_param.h"
+#include "klunk_param.h"
 #include "fcgi_protocol.h"
 
 klunk_request_t* klunk_request_create()
@@ -20,14 +20,14 @@ klunk_request_t* klunk_request_create()
 		request->content = 0;
 		request->output = 0;
 
-		request->params = llist_create(sizeof(fcgi_param_t));
+		request->params = llist_create(sizeof(klunk_param_t));
 		if (request->params == 0) {
 			klunk_request_destroy(request);
 			request = 0;
 		}
 		else {
 			llist_register_dtor(request->params
-				, (llist_item_dtor)&fcgi_param_destroy);
+				, (llist_item_dtor)&klunk_param_destroy);
 		}
 	}
 	if (request != 0) {

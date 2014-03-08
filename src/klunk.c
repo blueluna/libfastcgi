@@ -1,7 +1,7 @@
 #include "klunk.h"
 #include "errorcodes.h"
 #include "klunk_request.h"
-#include "fcgi_param.h"
+#include "klunk_param.h"
 #include <assert.h>
 #include <stdlib.h>
 #include <arpa/inet.h>
@@ -132,9 +132,9 @@ int32_t klunk_params(klunk_request_t *request
 			ptr += str_len[1];
 			left -= str_len[1];
 
-			fcgi_param_t *param = fcgi_param_create(name, str_len[0]
+			klunk_param_t *param = klunk_param_create(name, str_len[0]
 				, value, str_len[1]);
-			llist_add(request->params, param, sizeof(fcgi_param_t));
+			llist_add(request->params, param, sizeof(klunk_param_t));
 
 			bytes_used += (bytes_delta_acc + str_len[0] + str_len[1]);
 		}
