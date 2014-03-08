@@ -12,12 +12,6 @@
 #include "fcgi_protocol.h"
 #include "klunk_request.h"
 
-enum {
-	KLUNK_NEW_REQUEST = 1,
-	KLUNK_PARAMS_DONE,
-	KLUNK_STDIN_DONE,
-};
-
 typedef struct klunk_context_  {
 	int32_t					file_descriptor;
 	llist_t					*requests;
@@ -46,10 +40,7 @@ int32_t klunk_current_request(klunk_context_t *ctx);
 int32_t klunk_request_state(klunk_context_t *ctx, const uint16_t request_id);
 
 /* Read data from the file descriptor and try to generate requests.
- * Return value can be one of following:
- * KLUNK_NEW_REQUEST, A new request was found.
- * KLUNK_PARAMS_DONE, A request have received all parameters.
- * KLUNK_STDIN_DONE, A request have received all data.
+ * Returns number of bytes used.
  * Negative return value means error.
  */
 int32_t klunk_read(klunk_context_t *ctx

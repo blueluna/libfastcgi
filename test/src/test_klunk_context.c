@@ -295,7 +295,7 @@ void klunk_context_test()
 		data_size = generate_begin((uint8_t*)data, 1024, request_id);
 
 		result = klunk_read(ctx, data, data_size);
-		TEST_ASSERT_EQUAL(result, KLUNK_NEW_REQUEST);
+		TEST_ASSERT_EQUAL(result, data_size);
 
 		result = klunk_current_request(ctx);
 		TEST_ASSERT_EQUAL(result, request_id);
@@ -323,7 +323,7 @@ void klunk_context_test()
 		data_size = generate_param((uint8_t*)data, 1024, request_id, params, params_size);
 
 		result = klunk_read(ctx, data, data_size);
-		TEST_ASSERT_EQUAL(result, E_SUCCESS);
+		TEST_ASSERT_EQUAL(result, data_size);
 
 		result = klunk_request_state(ctx, request_id);
 		TEST_ASSERT_EQUAL(result, (KLUNK_RS_NEW | KLUNK_RS_PARAMS));
@@ -345,7 +345,7 @@ void klunk_context_test()
 		data_size = generate_param((uint8_t*)data, 1024, request_id, params, params_size);
 
 		result = klunk_read(ctx, data, data_size);
-		TEST_ASSERT_EQUAL(result, E_SUCCESS);
+		TEST_ASSERT_EQUAL(result, data_size);
 
 		result = klunk_request_state(ctx, request_id);
 		TEST_ASSERT_EQUAL(result, (KLUNK_RS_NEW | KLUNK_RS_PARAMS));
@@ -353,7 +353,7 @@ void klunk_context_test()
 		data_size = generate_param((uint8_t*)data, 1024, request_id, 0, 0);
 
 		result = klunk_read(ctx, data, data_size);
-		TEST_ASSERT_EQUAL(result, KLUNK_PARAMS_DONE);
+		TEST_ASSERT_EQUAL(result, data_size);
 
 		result = klunk_request_state(ctx, request_id);
 		TEST_ASSERT_EQUAL(result, (KLUNK_RS_NEW | KLUNK_RS_PARAMS
@@ -363,7 +363,7 @@ void klunk_context_test()
 		data_size = generate_stdin((uint8_t*)data, 1024, request_id, params, 18);
 
 		result = klunk_read(ctx, data, data_size);
-		TEST_ASSERT_EQUAL(result, E_SUCCESS);
+		TEST_ASSERT_EQUAL(result, data_size);
 
 		result = klunk_request_state(ctx, request_id);
 		TEST_ASSERT_EQUAL(result, (KLUNK_RS_NEW | KLUNK_RS_PARAMS
@@ -372,7 +372,7 @@ void klunk_context_test()
 		data_size = generate_stdin((uint8_t*)data, 1024, request_id, 0, 0);
 
 		result = klunk_read(ctx, data, data_size);
-		TEST_ASSERT_EQUAL(result, KLUNK_STDIN_DONE);
+		TEST_ASSERT_EQUAL(result, data_size);
 
 		result = klunk_request_state(ctx, request_id);
 		TEST_ASSERT_EQUAL(result, (KLUNK_RS_NEW | KLUNK_RS_PARAMS

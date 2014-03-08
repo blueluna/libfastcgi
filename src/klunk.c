@@ -189,22 +189,12 @@ int32_t klunk_process_input_buffer(klunk_context_t *ctx)
 		switch (ctx->current_header->type) {
 			case FCGI_BEGIN_REQUEST:
 				result = klunk_begin_request(ctx, buffer_data, buffer_length);
-				if (result >= 0) {
-					result = KLUNK_NEW_REQUEST;
-				}
 				bytes_used = buffer_length;
 				break;
 			case FCGI_PARAMS:
 				result = klunk_params(request, buffer_data, buffer_length);
 				if (result >= 0) {
 					bytes_used = result;
-					if (ctx->current_header->content_length == 0) {
-						/* We have received all PARAMS data */
-						result = KLUNK_PARAMS_DONE;
-					}
-					else {
-						result = E_SUCCESS;
-					}
 				}
 				else {
 					/* An error occured, clear buffer */
@@ -215,13 +205,6 @@ int32_t klunk_process_input_buffer(klunk_context_t *ctx)
 				result = klunk_stdin(request, buffer_data, buffer_length);
 				if (result >= 0) {
 					bytes_used = result;
-					if (ctx->current_header->content_length == 0) {
-						/* We have received all STDIN data */
-						result = KLUNK_STDIN_DONE;
-					}
-					else {
-						result = E_SUCCESS;
-					}
 				}
 				else {
 					/* An error occured, clear buffer */
@@ -251,6 +234,7 @@ int32_t klunk_process_input(klunk_context_t *ctx
 	int32_t padding_length = 0;
 	int32_t bytes_left = 0;
 	int32_t bytes_write = 0;
+	int32_t bytes_used = 0;
 	int32_t result = E_SUCCESS;
 
 	assert(len <= 0x7fffffff);
@@ -266,6 +250,14 @@ int32_t klunk_process_input(klunk_context_t *ctx
 				ptr += sizeof(fcgi_record_header_t);
 				ctx->read_bytes = 0;
 				ctx->read_state = 1;
+				bytes_used += sizeof(fcgi_record_header_t);
+			}
+			else if (result == E_INVALID_SIZE && bytes_used > 0) {
+				result = bytes_used;
+				break;
+			}
+			else {
+				break;
 			}
 		}
 		content_length = ctx->current_header->content_length;
@@ -284,7 +276,9 @@ int32_t klunk_process_input(klunk_context_t *ctx
 			/* Update incoming data length ... whatever... */
 			ptr += bytes_write;
 			length -= bytes_write;
+			bytes_used += bytes_write;
 			ctx->read_bytes += bytes_write;
+
 			/* Check if all content has been read */
 			if (ctx->read_bytes >= content_length) {
 				/* Check if all incoming data has been read */
@@ -294,6 +288,7 @@ int32_t klunk_process_input(klunk_context_t *ctx
 					bytes_write = bytes_left > length ? length : bytes_left;
 					ptr += bytes_write;
 					length -= bytes_write;
+					bytes_used += bytes_write;
 					ctx->read_bytes += bytes_write;
 					/* Update counter */
 					bytes_left = (content_length + padding_length) - ctx->read_bytes;
@@ -305,6 +300,9 @@ int32_t klunk_process_input(klunk_context_t *ctx
 				}
 			}	
 		}
+	}
+	if (result >= E_SUCCESS) {
+		return bytes_used;
 	}
 	return result;
 }
