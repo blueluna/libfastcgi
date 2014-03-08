@@ -90,9 +90,12 @@ void fcgi_write(uv_write_t *req, int status)
 				return;
 			}
 		}
+		/* cleanup */
 		buffer_destroy(sr->buffer);
 		free(sr);
 		free(req);
+		/* close */
+		uv_close((uv_handle_t*)req->handle, service_destroy);
 	}
 }
 
