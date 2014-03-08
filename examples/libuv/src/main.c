@@ -35,6 +35,36 @@ void service_destroy(uv_handle_t *handle)
 	free(handle);
 }
 
+void print_params(llist_t *list)
+{
+	klunk_param_t *param = 0;
+	llist_item_t *ptr = list->items;
+	while (ptr != 0) {
+		param = (klunk_param_t*)(ptr->data);
+		printf("%s: %s\n", param->name, param->value);
+		ptr = ptr->next;
+	}
+}
+
+void format_params(llist_t *list, char *buffer, const int32_t len)
+{
+	char *data = buffer;
+	int32_t left = len;
+	int32_t result = 0;
+	klunk_param_t *param = 0;
+	llist_item_t *ptr = list->items;
+	while (ptr != 0) {
+		param = (klunk_param_t*)(ptr->data);
+		result = snprintf(data, left, "<li><tt>%s</tt>: <tt>%s</tt></li>", param->name, param->value);
+		left = left - result;
+		if (left <= 0) {
+			break;
+		}
+		data += result;
+		ptr = ptr->next;
+	}
+}
+
 void fcgi_write(uv_write_t *req, int status)
 {
 	int32_t result = 0;
@@ -72,6 +102,7 @@ void fcgi_read(uv_stream_t *client, ssize_t nread, uv_buf_t buf)
 	klunk_context_t *ctx = 0;
 	int32_t request_id = 0;
 	int32_t kstate = 0;
+	klunk_request_t* request = 0;
 
 
 	if (nread == -1) {
@@ -88,6 +119,12 @@ void fcgi_read(uv_stream_t *client, ssize_t nread, uv_buf_t buf)
 			if (result > 0) {
 				request_id = result;
 				kstate = klunk_request_state(ctx, request_id);
+				request = klunk_find_request(ctx, request_id);
+			}
+			if ((kstate & KLUNK_RS_PARAMS_DONE)) {
+				if (request != 0) {
+					print_params(request->params);
+				}
 			}
 			if ((kstate & KLUNK_RS_STDIN_DONE)) {
 				struct service_request *sr = (struct service_request*)malloc(sizeof(struct service_request));
@@ -101,19 +138,51 @@ void fcgi_read(uv_stream_t *client, ssize_t nread, uv_buf_t buf)
 				assert(req != 0);
 				req->data = sr;
 
-				const char *content = 
+				char *params = malloc(2048);
+				assert(params != 0);
+				if (request != 0) {
+					format_params(request->params, params, 2048);
+				}
+				char *content = malloc(3072);
+				assert(params != 0);
+
+				const char *null_content = "";
+
+				const char *fmt = 
 					"Status: 200\r\nContent-Type: text/html\r\n\r\n"
-					"<html><head><title>Hi</title></head><body>"
-					"<h1>Hi</h1>"
+					"<html><head>"
+					"<title>Klunk FastCGI Service</title>"
+					"<style>html{font-family:sans-serif;background-color:#e5deca;color:#363d32;}</style>"
+					"</head><body>"
+					"<h1>Klunk FastCGI Service</h1>"
+					"FastCGI id: %d</br>"
+					"Network library: libuv</br>"
+					"<h2>Request Parameters</h2>"
+					"<ul>%s</ul>"
+					"<h2>Request Content</h2>"
+					"<pre>%s</pre>"
 					"</body></html>\r\n";
-				int content_len = strlen(content);
+
+				const char *request_content = 0;
+				if (buffer_used(request->content) > 0) {
+					request_content = buffer_peek(request->content);
+				}
+				else {
+					request_content = null_content;
+				}
+				int content_len = snprintf(content, 3072, fmt, request_id, params, request_content);
+
+				free(params);
 
 				result = klunk_write_output(ctx, request_id, content
 					, content_len);
 				assert(result > 0);
 
+				free(content);
+
 				result = klunk_write(ctx, buffer_peek(sr->buffer), buffer_free(sr->buffer), request_id);
 				assert(result > 0);
+
 				uv_buf_t b = { .len = result, .base = buffer_peek(sr->buffer) };
 
 				uv_write(req, client, &b, 1, fcgi_write);
