@@ -7,7 +7,6 @@
 
 #include "testcase.h"
 #include "klunk.h"
-#include "klunk_private.h"
 #include "klunk_request.h"
 #include "klunk_param.h"
 #include "errorcodes.h"
@@ -311,7 +310,7 @@ void klunk_context_test()
 
 		/* Run the same begin request again */
 
-		result = klunk_process_data(ctx, data, data_size);
+		result = klunk_read(ctx, data, data_size);
 		TEST_ASSERT_EQUAL(result, E_REQUEST_DUPLICATE);
 
 		result = klunk_request_state(ctx, request_id);
