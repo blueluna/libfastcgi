@@ -216,12 +216,14 @@ int32_t print_record(fcgi_record *rec)
 	if (rec == 0) {
 		return E_INVALID_ARGUMENT;
 	}
+#if 0
 	printf("-- Record ----------------------------\n");
 	printf("       Version: %u\n", rec->header.version);
 	printf("          Type: %s (%u)\n", type_as_string(rec->header.type), rec->header.type);
 	printf("    Request Id: %u\n", rec->header.request_id);
 	printf("Content Length: %u\n", rec->header.content_len);
 	printf("Padding Length: %u\n", rec->header.padding_len);
+#endif
 	return E_SUCCESS;
 }
 
@@ -404,6 +406,9 @@ void klunk_context_test()
 
 		klunk_write_error(ctx, request_id, params, 18);
 
+		result = klunk_write(ctx, data, 8, request_id);
+		TEST_ASSERT_EQUAL(result, E_INVALID_SIZE);
+
 		data_size = klunk_write(ctx, data, 1024, request_id);
 		TEST_ASSERT_GT(data_size, 0);
 		result = parse_record(data, data_size, &rec);
@@ -426,6 +431,9 @@ void klunk_context_test()
 		result = klunk_finish(ctx, request_id);
 		TEST_ASSERT_TRUE(result >= E_SUCCESS);
 
+		result = klunk_write(ctx, data, 7, request_id);
+		TEST_ASSERT_EQUAL(result, E_INVALID_SIZE);
+
 		data_size = klunk_write(ctx, data, 1024, request_id);
 
 		TEST_ASSERT_GT(data_size, 0);
@@ -439,6 +447,9 @@ void klunk_context_test()
 			TEST_ASSERT_EQUAL(rec.header.padding_len, 0);
 		}
 
+		result = klunk_write(ctx, data, 7, request_id);
+		TEST_ASSERT_EQUAL(result, E_INVALID_SIZE);
+
 		data_size = klunk_write(ctx, data, 1024, request_id);
 
 		result = parse_record(data, data_size, &rec);
@@ -450,6 +461,9 @@ void klunk_context_test()
 			TEST_ASSERT_EQUAL(rec.header.content_len, 0);
 			TEST_ASSERT_EQUAL(rec.header.padding_len, 0);
 		}
+
+		result = klunk_write(ctx, data, 15, request_id);
+		TEST_ASSERT_EQUAL(result, E_INVALID_SIZE);
 
 		data_size = klunk_write(ctx, data, 1024, request_id);
 
@@ -466,7 +480,9 @@ void klunk_context_test()
 			TEST_ASSERT_EQUAL(result, 0);
 		}
 
-		TEST_ASSERT_EQUAL(result, 0);
+		result = klunk_write(ctx, data, 1024, request_id);
+
+		TEST_ASSERT_EQUAL(result, E_REQUEST_NOT_FOUND);
 
 		request = klunk_find_request(ctx, request_id);
 		TEST_ASSERT_EQUAL(request, 0);

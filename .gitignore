@@ -1,8 +1,9 @@
 # project
-test/*_test
+test/test
 
 # build
 *.a
+*.so
 
 # CMake
 CMakeFiles/

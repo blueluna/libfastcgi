@@ -1,8 +1,6 @@
 #include <stdlib.h>
 #include <arpa/inet.h>
 
-#include <stdio.h>
-
 #include "errorcodes.h"
 #include "klunk_request.h"
 #include "klunk_utils.h"
@@ -300,18 +298,26 @@ int32_t klunk_request_read(klunk_request_t *request
 	if ((request->state & KLUNK_RS_FINISHED)) {
 		return E_SUCCESS;
 	}
+	if (output_len < sizeof(fcgi_record_header_t)) {
+		return E_INVALID_SIZE;
+	}
 
 	finish = (request->state & KLUNK_RS_FINISH) > 0;
 	content_len = output_len - sizeof(fcgi_record_header_t);
 
 	stored_len = buffer_used(request->error);
 	if (stored_len > 0) {
-		use_len = stored_len > content_len ? content_len : stored_len;
-		result = klunk_request_generate_record(request, output, output_len
-			, FCGI_STDERR, buffer_peek(request->error), use_len);
-		if (result > 0) {
-			use_len = (size_t)result > stored_len ? stored_len : (size_t)result;
-			buffer_read(request->error, 0, use_len);
+		if (content_len > 0) {
+			use_len = stored_len > content_len ? content_len : stored_len;
+			result = klunk_request_generate_record(request, output, output_len
+				, FCGI_STDERR, buffer_peek(request->error), use_len);
+			if (result > 0) {
+				use_len = (size_t)result > stored_len ? stored_len : (size_t)result;
+				buffer_read(request->error, 0, use_len);
+			}
+		}
+		else {
+			result = E_INVALID_SIZE;
 		}
 		return result;
 	}
@@ -322,12 +328,17 @@ int32_t klunk_request_read(klunk_request_t *request
 
 	stored_len = buffer_used(request->output);
 	if (stored_len > 0) {
-		use_len = stored_len > content_len ? content_len : stored_len;
-		result = klunk_request_generate_record(request, output, output_len
-			, FCGI_STDOUT, buffer_peek(request->output), use_len);
-		if (result > 0) {
-			use_len = (size_t)result > stored_len ? stored_len : (size_t)result;
-			buffer_read(request->output, 0, use_len);
+		if (content_len > 0) {
+			use_len = stored_len > content_len ? content_len : stored_len;
+			result = klunk_request_generate_record(request, output, output_len
+				, FCGI_STDOUT, buffer_peek(request->output), use_len);
+			if (result > 0) {
+				use_len = (size_t)result > stored_len ? stored_len : (size_t)result;
+				buffer_read(request->output, 0, use_len);
+			}
+		}
+		else {
+			result = E_INVALID_SIZE;
 		}
 		return result;
 	}
@@ -337,16 +348,21 @@ int32_t klunk_request_read(klunk_request_t *request
 	}
 
 	if (finish) {
-		fcgi_record_end_t record = {
-			.app_status = request->app_status,
-			.protocol_status = request->protocol_status,
-			.reserved = {0}
-		};
-		result = klunk_request_generate_record(request, output, output_len
-			, FCGI_END_REQUEST
-			, (const char*)&record, (uint16_t)sizeof(fcgi_record_end_t));
-		if (result >= 0) {
-			klunk_request_set_state(request, KLUNK_RS_FINISHED);
+		if (content_len >= 8) {
+			fcgi_record_end_t record = {
+				.app_status = request->app_status,
+				.protocol_status = request->protocol_status,
+				.reserved = {0}
+			};
+			result = klunk_request_generate_record(request, output, output_len
+				, FCGI_END_REQUEST
+				, (const char*)&record, (uint16_t)sizeof(fcgi_record_end_t));
+			if (result >= 0) {
+				klunk_request_set_state(request, KLUNK_RS_FINISHED);
+			}
+		}
+		else {
+			result = E_INVALID_SIZE;
 		}
 	}
 
