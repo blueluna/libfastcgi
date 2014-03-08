@@ -84,6 +84,7 @@ void fcgi_write(uv_write_t *req, int status)
 				assert(result == 0);
 			}
 			result = klunk_write(sr->ctx, buffer_peek(sr->buffer), buffer_free(sr->buffer), sr->id);
+			printf("fcgi_write: write content, %d\n", result);
 			if (result > 0) {
 				uv_buf_t b = { .len = result, .base = buffer_peek(sr->buffer) };
 				uv_write(req, req->handle, &b, 1, fcgi_write);
@@ -107,6 +108,7 @@ void fcgi_read(uv_stream_t *client, ssize_t nread, uv_buf_t buf)
 	int32_t kstate = 0;
 	klunk_request_t* request = 0;
 
+	printf("fcgi_read: %lu\n", nread);
 
 	if (nread == -1) {
 		if (uv_last_error(loop).code != UV_EOF) {
@@ -125,11 +127,13 @@ void fcgi_read(uv_stream_t *client, ssize_t nread, uv_buf_t buf)
 				request = klunk_find_request(ctx, request_id);
 			}
 			if ((kstate & KLUNK_RS_PARAMS_DONE)) {
+				printf("fcgi_read: params done\n");
 				if (request != 0) {
 					print_params(request->params);
 				}
 			}
 			if ((kstate & KLUNK_RS_STDIN_DONE)) {
+				printf("fcgi_read: stdin done\n");
 				struct service_request *sr = (struct service_request*)malloc(sizeof(struct service_request));
 				assert(sr != 0);
 
@@ -176,15 +180,18 @@ void fcgi_read(uv_stream_t *client, ssize_t nread, uv_buf_t buf)
 				int content_len = snprintf(content, 3072, fmt, request_id, params, request_content);
 
 				free(params);
+				printf("fcgi_read: generate content, %d\n", content_len);
 
 				result = klunk_write_output(ctx, request_id, content
 					, content_len);
 				assert(result > 0);
+				printf("fcgi_read: buffer content, %d\n", result);
 
 				free(content);
 
 				result = klunk_write(ctx, buffer_peek(sr->buffer), buffer_free(sr->buffer), request_id);
 				assert(result > 0);
+				printf("fcgi_read: write content, %d\n", result);
 
 				uv_buf_t b = { .len = result, .base = buffer_peek(sr->buffer) };
 
