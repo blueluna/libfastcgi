@@ -299,7 +299,6 @@ int32_t klunk_request_read(klunk_request_t *request
 			result = klunk_request_generate_record(request, output, output_len
 				, FCGI_STDERR, buffer_peek(request->error), use_len);
 			if (result > 0) {
-				use_len = (size_t)result > stored_len ? stored_len : (size_t)result;
 				buffer_read(request->error, 0, use_len);
 			}
 		}
@@ -321,7 +320,6 @@ int32_t klunk_request_read(klunk_request_t *request
 			result = klunk_request_generate_record(request, output, output_len
 				, FCGI_STDOUT, buffer_peek(request->output), use_len);
 			if (result > 0) {
-				use_len = (size_t)result > stored_len ? stored_len : (size_t)result;
 				buffer_read(request->output, 0, use_len);
 			}
 		}
