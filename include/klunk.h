@@ -14,6 +14,7 @@
 #include "klunk_param.h"
 
 typedef struct klunk_context_  {
+	int32_t					file_descriptor;
 	llist_t					*requests;
 	buffer_t				*input;
 	fcgi_record_header_t	*current_header;
@@ -72,11 +73,14 @@ int32_t klunk_write(klunk_context_t *ctx
 	, char *output, const size_t output_len
 	, const uint16_t request_id);
 
-int32_t klunk_free_request(klunk_context_t *ctx, const uint16_t request_id);
-
 /* Find and return the request with the supplied id. return zero if the 
  * request object wasn't found.
  */
 klunk_request_t* klunk_find_request(klunk_context_t *ctx, const uint16_t id);
+
+/* Find and return the request with the supplied id, removing it from the
+ * internal list. return zero if the request object wasn't found.
+ */
+klunk_request_t* klunk_take_request(klunk_context_t *ctx, const uint16_t id);
 
 #endif /* KLUNK_H */

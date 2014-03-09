@@ -52,7 +52,7 @@ void llist_destroy(llist_t *list)
 	free(list);
 }
 
-int32_t llist_register_dtor(llist_t *list, llist_item_dtor item_dtor)
+int32_t llist_register_dtor(llist_t *list, llist_item_dtor_func item_dtor)
 {
 	if (list == 0) {
 		return E_INVALID_ARGUMENT;
@@ -107,6 +107,33 @@ int32_t llist_add(llist_t *list, void *data, const size_t item_size)
 	return result;
 }
 
+int32_t llist_take(llist_t *list, const void *data)
+{
+	if (list == 0) {
+		return E_INVALID_ARGUMENT;
+	}
+	int32_t result = E_NOT_FOUND;
+	llist_item_t *ptr = list->items;
+	llist_item_t *prev = 0;
+	while (ptr != 0) {
+		if (ptr->data == data) {
+			if (prev == 0) {
+				/* Removing first item */
+				list->items = ptr->next;
+			}
+			else {
+				prev->next = ptr->next;
+			}
+			free(ptr);
+			result = E_SUCCESS;
+			break;
+		}
+		prev = ptr;
+		ptr = ptr->next;
+	}
+	return result;
+}
+
 int32_t llist_remove(llist_t *list, const void *data)
 {
 	if (list == 0) {
@@ -135,7 +162,7 @@ int32_t llist_remove(llist_t *list, const void *data)
 	return result;
 }
 
-llist_item_t* llist_find(llist_t *list, const void *data)
+llist_item_t* llist_find_item(llist_t *list, const void *data)
 {
 	if (list == 0 || data == 0) {
 		return 0;
@@ -156,4 +183,38 @@ llist_item_t* llist_begin(llist_t *list)
 		return 0;
 	}
 	return list->items;
+}
+
+llist_item_t*	llist_find_item_match(llist_t *list
+	, llist_iterator_func func, const void *key)
+{
+	if (list == 0 || func == 0) {
+		return 0;
+	}
+	llist_item_t *ptr = list->items;
+	while (ptr != 0) {
+		if ((*(func))(ptr->data, key)) {
+			break;
+		}
+		ptr = ptr->next;
+	}
+	return ptr;
+}
+
+/* Iterate through the list and run the provided function
+ */
+void llist_foreach(llist_t *list, llist_iterator_func func
+	, const void *user_data)
+{
+	if (list == 0 || func == 0) {
+		return;
+	}
+	llist_item_t *ptr = list->items;
+	while (ptr != 0) {
+		if (!(*(func))(ptr->data, user_data)) {
+			break;
+		}
+		ptr = ptr->next;
+	}
+	return;
 }

@@ -72,8 +72,9 @@ void klunk_param_llist_test()
 	assert(value != 0);
 	list = llist_create(sizeof(klunk_param_t));
 	assert(list != 0);
-	result = llist_register_dtor(list, (llist_item_dtor)&klunk_param_destroy);
+	result = llist_register_dtor(list, klunk_param_destroy);
 	assert(result == E_SUCCESS);
+	TEST_ASSERT_EQUAL(result, E_SUCCESS);
 
 	for (n = 0; n < 10; n++) {
 		name_len = snprintf(name, 256, "item %d", n);

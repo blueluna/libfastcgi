@@ -8,6 +8,25 @@
 #include <unistd.h>
 #include <errno.h>
 
+klunk_request_t* klunk_find_free_request(klunk_context_t *ctx)
+{
+	if (ctx == 0 || ctx->requests == 0 || ctx->requests->items == 0) {
+		return 0;
+	}
+	klunk_request_t* request = 0;
+	klunk_request_t* item = 0;
+	llist_item_t *ptr = ctx->requests->items;
+	while (ptr != 0) {
+		item = (klunk_request_t*)(ptr->data);
+		if (item->id == 0) {
+			request = (klunk_request_t*)(ptr->data);
+			break;
+		}
+		ptr = ptr->next;
+	}
+	return request;
+}
+
 klunk_request_t* klunk_find_request(klunk_context_t *ctx, const uint16_t id)
 {
 	if (ctx == 0 || ctx->requests == 0 || ctx->requests->items == 0) {
@@ -19,6 +38,26 @@ klunk_request_t* klunk_find_request(klunk_context_t *ctx, const uint16_t id)
 	while (ptr != 0) {
 		item = (klunk_request_t*)(ptr->data);
 		if (item->id == id) {
+			request = (klunk_request_t*)(ptr->data);
+			break;
+		}
+		ptr = ptr->next;
+	}
+	return request;
+}
+
+klunk_request_t* klunk_take_request(klunk_context_t *ctx, const uint16_t id)
+{
+	if (ctx == 0 || ctx->requests == 0 || ctx->requests->items == 0) {
+		return 0;
+	}
+	klunk_request_t* request = 0;
+	klunk_request_t* item = 0;
+	llist_item_t *ptr = ctx->requests->items;
+	while (ptr != 0) {
+		item = (klunk_request_t*)(ptr->data);
+		if (item->id == id) {
+			llist_take(ctx->requests, ptr->data);
 			request = (klunk_request_t*)(ptr->data);
 			break;
 		}
@@ -62,12 +101,18 @@ int32_t klunk_begin_request(klunk_context_t *ctx
 		result = E_INVALID_SIZE;
 	}
 	if (result == E_SUCCESS) {
-		request = klunk_request_create();
-		request->id = ctx->current_header->request_id;
-		request->role = record.role;
-		request->flags = record.flags;
-		klunk_request_set_state(request, KLUNK_RS_NEW);
-		result = llist_add(ctx->requests, request, sizeof(klunk_request_t));
+		request = klunk_find_free_request(ctx);
+		if (request == 0) {
+			request = klunk_request_create();
+			result = llist_add(ctx->requests, request
+				, sizeof(klunk_request_t));
+		}
+		if (result == E_SUCCESS) {
+			request->id = ctx->current_header->request_id;
+			request->role = record.role;
+			request->flags = record.flags;
+			klunk_request_set_state(request, KLUNK_RS_NEW);
+		}
 	}
 	return result;
 }
@@ -132,9 +177,8 @@ int32_t klunk_params(klunk_request_t *request
 			ptr += str_len[1];
 			left -= str_len[1];
 
-			klunk_param_t *param = klunk_param_create(name, str_len[0]
+			klunk_request_parameter_add(request, name, str_len[0]
 				, value, str_len[1]);
-			llist_add(request->params, param, sizeof(klunk_param_t));
 
 			bytes_used += (bytes_delta_acc + str_len[0] + str_len[1]);
 		}
@@ -337,7 +381,7 @@ klunk_context_t * klunk_create()
 		}
 		else {
 			llist_register_dtor(ctx->requests
-				, (llist_item_dtor)&klunk_request_destroy);
+				, (llist_item_dtor_func)&klunk_request_destroy);
 		}
 	}
 	if (ctx != 0) {
@@ -511,12 +555,15 @@ int32_t klunk_write(klunk_context_t *ctx
 		result = E_REQUEST_NOT_FOUND;
 	}
 	else {
-		result = klunk_request_read(request, output, output_len);
+		result = klunk_request_output(request, output, output_len);
 	}
 	if (result >= 0) {
 		state = klunk_request_get_state(request, 0);
 		if ((state & KLUNK_RS_FINISHED)) {
-			llist_remove(ctx->requests, request);
+			/* Reset request */
+			klunk_request_reset(request);
+			request->id = 0;
+			klunk_request_set_state(request, KLUNK_RS_INIT);
 		}
 	}
 	return result;

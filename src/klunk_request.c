@@ -7,6 +7,21 @@
 #include "klunk_param.h"
 #include "fcgi_protocol.h"
 
+int32_t klunk_request_param_reset(void *data, void *user_data)
+{
+	klunk_param_reset((klunk_param_t*)data);
+	return 1;
+}
+
+int32_t klunk_request_param_is_free(void *data, void *user_data)
+{
+	int32_t result = klunk_param_is_free((klunk_param_t*)data);
+	if (result == 0) {
+		return 0;
+	}
+	return 1;
+}
+
 klunk_request_t* klunk_request_create()
 {
 	klunk_request_t *request = 0;
@@ -27,7 +42,7 @@ klunk_request_t* klunk_request_create()
 		}
 		else {
 			llist_register_dtor(request->params
-				, (llist_item_dtor)&klunk_param_destroy);
+				, klunk_param_destroy);
 		}
 	}
 	if (request != 0) {
@@ -66,6 +81,16 @@ void klunk_request_destroy(klunk_request_t *request)
 		llist_destroy(request->params);
 		request->params = 0;
 		free(request);
+	}
+}
+
+void klunk_request_reset(klunk_request_t *request)
+{
+	if (request != 0) {
+		buffer_clear(request->error);
+		buffer_clear(request->output);
+		buffer_clear(request->content);
+		llist_foreach(request->params, klunk_request_param_reset, NULL);
 	}
 }
 
@@ -133,6 +158,32 @@ int32_t klunk_request_set_state(klunk_request_t *request, const uint16_t state)
 	}
 	if (result == E_SUCCESS) {
 		result = (int32_t)request->state;
+	}
+	return result;
+}
+
+int32_t klunk_request_parameter_add(klunk_request_t *request
+	, const char *name, const size_t name_len
+	, const char *value, const size_t value_len)
+{
+	int32_t result = E_SUCCESS;
+	llist_item_t *item = 0;
+	klunk_param_t *param = 0;
+
+	if (request == 0) {
+		return E_INVALID_OBJECT;
+	}
+	item = llist_find_item_match(request->params
+		, klunk_request_param_is_free, NULL);
+	if (item != 0) {
+		param = (klunk_param_t*)(item->data);
+		result = klunk_param_set(param, name, name_len, value, value_len);
+	}
+	else {
+		param = klunk_param_create(name, name_len, value, value_len);
+		if (param != 0) {
+			result = llist_add(request->params, param, sizeof(klunk_param_t));
+		}
 	}
 	return result;
 }
@@ -267,7 +318,19 @@ int32_t klunk_request_write_error(klunk_request_t *request
 	return klunk_request_store(request, FCGI_STDERR, input, input_len);	
 }
 
-int32_t klunk_request_read(klunk_request_t *request
+int32_t klunk_request_finish(klunk_request_t *request
+	, const uint32_t app_status, const uint8_t protocol_status)
+{
+	if (request == 0) {
+		return E_INVALID_OBJECT;
+	}
+	request->protocol_status = protocol_status;
+	request->app_status = app_status;
+	klunk_request_set_state(request, KLUNK_RS_FINISH);
+	return E_SUCCESS;
+}
+
+int32_t klunk_request_output(klunk_request_t *request
 	, char *output, const size_t output_len)
 {
 	int32_t result = E_SUCCESS;
@@ -354,16 +417,4 @@ int32_t klunk_request_read(klunk_request_t *request
 	}
 
 	return result;
-}
-
-int32_t klunk_request_finish(klunk_request_t *request
-	, const uint32_t app_status, const uint8_t protocol_status)
-{
-	if (request == 0) {
-		return E_INVALID_OBJECT;
-	}
-	request->protocol_status = protocol_status;
-	request->app_status = app_status;
-	klunk_request_set_state(request, KLUNK_RS_FINISH);
-	return E_SUCCESS;
 }

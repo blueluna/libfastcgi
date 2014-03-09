@@ -44,39 +44,44 @@ klunk_request_t* klunk_request_create();
 /* Destroy the request "object" */
 void klunk_request_destroy(klunk_request_t *request);
 
+/* Reset the request "object" */
+void klunk_request_reset(klunk_request_t *request);
+
 /* Get request state */
 int32_t klunk_request_get_state(klunk_request_t *request, const uint16_t mask);
 
 /* Set request state */
 int32_t klunk_request_set_state(klunk_request_t *request, const uint16_t state);
 
-int32_t klunk_request_generate_record(klunk_request_t *request
-	, char *output, const int32_t output_len
-	, const uint8_t type
-	, const char *input, const int32_t input_len);
+/* Add parameter
+ * Negative return value means error.
+ */
+int32_t klunk_request_parameter_add(klunk_request_t *request
+	, const char *name, const size_t name_len
+	, const char *value, const size_t value_len);
 
-/* 
+/* Write data that shall be sent to the server.
  * Negative return value means error.
  */
 int32_t klunk_request_write_output(klunk_request_t *request
 	, const char *input, const size_t input_len);
 
-/* 
+/* Write error data that shall be sent to the server.
  * Negative return value means error.
  */
 int32_t klunk_request_write_error(klunk_request_t *request
 	, const char *input, const size_t input_len);
 
-/* 
- * Negative return value means error.
- */
-int32_t klunk_request_read(klunk_request_t *request
-	, char *output, const size_t output_len);
-
-/* 
+/* Mark the request as finished.
  * Negative return value means error.
  */
 int32_t klunk_request_finish(klunk_request_t *request
 	, const uint32_t app_status, const uint8_t protocol_status);
+
+/* Generate FCGI records from request.
+ * Negative return value means error.
+ */
+int32_t klunk_request_output(klunk_request_t *request
+	, char *output, const size_t output_len);
 
 #endif /* KLUNK_REQUEST_H */
