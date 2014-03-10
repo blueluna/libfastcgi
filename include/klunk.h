@@ -13,6 +13,9 @@
 #include "klunk_request.h"
 #include "klunk_param.h"
 
+void klunk_version(int32_t *version_major, int32_t *version_minor
+	, int32_t *version_patch);
+
 typedef struct klunk_context_  {
 	llist_t					*requests;
 	buffer_t				*input;

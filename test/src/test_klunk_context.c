@@ -238,6 +238,12 @@ void klunk_context_test()
 	klunk_context_t *ctx = 0;
 	klunk_request_t *request = 0;
 
+	int32_t major, minor, patch;
+	klunk_version(&major, &minor, &patch);
+	TEST_ASSERT_EQUAL(major, 0);
+	TEST_ASSERT_EQUAL(minor, 1);
+	TEST_ASSERT_EQUAL(patch, 0);
+
 	data = malloc(1024);
 	assert(data != 0);
 	params = malloc(1024);

@@ -3,7 +3,11 @@ project(klunk)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS YES)
 
-set(C_DEFINES "")
+set(VER_MAJ "0")
+set(VER_MIN "1")
+set(VER_PCH "0")
+
+set(C_DEFINES "-DKLUNK_VERSION_MAJOR=${VER_MAJ} -DKLUNK_VERSION_MINOR=${VER_MIN} -DKLUNK_VERSION_PATCH=${VER_PCH}")
 set(C_OPTIONS "-std=c99 -fPIC")
 
 #set(CMAKE_CC_COMPILER, "/usr/bin/clang")

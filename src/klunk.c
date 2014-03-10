@@ -8,6 +8,20 @@
 #include <unistd.h>
 #include <errno.h>
 
+void klunk_version(int32_t *version_major, int32_t *version_minor
+	, int32_t *version_patch)
+{
+	if (version_major != 0) {
+		*version_major = KLUNK_VERSION_MAJOR;
+	}
+	if (version_minor != 0) {
+		*version_minor = KLUNK_VERSION_MINOR;
+	}
+	if (version_patch != 0) {
+		*version_patch = KLUNK_VERSION_PATCH;
+	}
+}
+
 klunk_request_t* klunk_find_free_request(klunk_context_t *ctx)
 {
 	if (ctx == 0 || ctx->requests == 0 || ctx->requests->items == 0) {
