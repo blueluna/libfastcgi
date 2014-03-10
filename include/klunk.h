@@ -14,7 +14,6 @@
 #include "klunk_param.h"
 
 typedef struct klunk_context_  {
-	int32_t					file_descriptor;
 	llist_t					*requests;
 	buffer_t				*input;
 	fcgi_record_header_t	*current_header;
