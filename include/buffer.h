@@ -1,5 +1,5 @@
 /* A growing memory buffer
- *(C) 2014 Erik Svensson <erik.public@gmail.com>
+ * (C) 2014 Erik Svensson <erik.public@gmail.com>
  * Licensed under the MIT license.
  */
 

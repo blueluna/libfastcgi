@@ -10,7 +10,7 @@
 #include <string.h>
 
 typedef void (*llist_item_dtor_func)(void*);
-typedef int32_t (*llist_iterator_func)(const void* data, const void *user_data);
+typedef int32_t (*llist_iterator_func)(void* data, void *user_data);
 
 typedef struct llist_item_ {
 	struct llist_item_	*next;
@@ -51,13 +51,13 @@ llist_item_t*	llist_begin(llist_t *list);
  * key. The loop stops when the match function returns true.
  */
 llist_item_t*	llist_find_item_match(llist_t *list
-	, llist_iterator_func match_func, const void *user_data);
+	, llist_iterator_func match_func, void *user_data);
 
 
 /* Iterate through the list and run the provided function. The loop stops when
  * the provided function returns false.
  */
 void llist_foreach(llist_t *list, llist_iterator_func func
-	, const void *user_data);
+	, void *user_data);
 
 #endif /* ES_LLIST_H */

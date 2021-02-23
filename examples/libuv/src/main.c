@@ -9,18 +9,18 @@
 #include <string.h>
 #include <assert.h>
 #include <uv.h>
-#include "klunk.h"
-#include "klunk_utils.h"
+#include "fastcgi.h"
+#include "utilities.h"
 #include "buffer.h"
 
  struct my_server {
  	uv_handle_t		*server;
- 	klunk_context_t	*ctx;
+ 	fastcgi_context_t	*ctx;
  };
 
  struct my_service_request {
  	uint16_t		id;
- 	klunk_context_t *ctx;
+ 	fastcgi_context_t *ctx;
  	buffer_t		*buffer;
  	uv_handle_t		*client;
  };
@@ -32,7 +32,7 @@ void signal_handler(uv_signal_t *handle, int signum)
     printf("signal received: %d\n", signum);
 	struct my_server *server = (struct my_server*)loop->data;
 	if (server != 0) {
-    	klunk_destroy(server->ctx);
+    	fastcgi_destroy(server->ctx);
     	server->ctx = 0;
 		uv_close(server->server, NULL);
     	free(server);
@@ -131,14 +131,14 @@ void fcgi_write(uv_write_t *req, int status)
 		}
 	}
 	else if (status == 0) {	
-		kstate = klunk_request_state(sr->ctx, sr->id);
+		kstate = fastcgi_request_state(sr->ctx, sr->id);
 
 		if (kstate >= 0) {
-			if ((kstate & KLUNK_RS_FINISH) == 0) {
-				result = klunk_finish(sr->ctx, sr->id);
+			if ((kstate & FASTCGI_RS_FINISH) == 0) {
+				result = fastcgi_finish(sr->ctx, sr->id);
 				assert(result == 0);
 			}
-			result = klunk_write(sr->ctx, buffer_peek(sr->buffer), buffer_free(sr->buffer), sr->id);
+			result = fastcgi_write(sr->ctx, buffer_peek(sr->buffer), buffer_free(sr->buffer), sr->id);
 			// printf("fcgi_write: write content, %d\n", result);
 			if (result > 0) {
 				uv_buf_t b = { .len = result, .base = buffer_peek(sr->buffer) };
@@ -158,10 +158,10 @@ void fcgi_write(uv_write_t *req, int status)
 void fcgi_read(uv_stream_t *client, ssize_t nread, uv_buf_t buf)
 {
 	int32_t result = 0;
-	klunk_context_t *ctx = 0;
+	fastcgi_context_t *ctx = 0;
 	int32_t request_id = 0;
 	int32_t kstate = 0;
-	klunk_request_t* request = 0;
+	fastcgi_request_t* request = 0;
 
 	// printf("fcgi_read: %lu\n", nread);
 
@@ -174,20 +174,20 @@ void fcgi_read(uv_stream_t *client, ssize_t nread, uv_buf_t buf)
 	else if (nread > 0) {
 		if (loop->data != 0) {
 			ctx = ((struct my_server*)loop->data)->ctx;
-			result = klunk_read(ctx, buf.base, nread);
-			result = klunk_current_request(ctx);
+			result = fastcgi_read(ctx, buf.base, nread);
+			result = fastcgi_current_request_id(ctx);
 			if (result > 0) {
 				request_id = result;
-				kstate = klunk_request_state(ctx, request_id);
-				request = klunk_find_request(ctx, request_id);
+				kstate = fastcgi_request_state(ctx, request_id);
+				request = fastcgi_find_request(ctx, request_id);
 			}
-			if ((kstate & KLUNK_RS_PARAMS_DONE)) {
+			if ((kstate & FASTCGI_RS_PARAMS_DONE)) {
 				// printf("fcgi_read: params done\n");
 				if (request != 0) {
 					// print_params(request->params);
 				}
 			}
-			if ((kstate & KLUNK_RS_STDIN_DONE)) {
+			if ((kstate & FASTCGI_RS_STDIN_DONE)) {
 				// printf("fcgi_read: stdin done\n");
 				struct my_service_request *sr = (struct my_service_request*)malloc(sizeof(struct my_service_request));
 				assert(sr != 0);
@@ -219,13 +219,13 @@ void fcgi_read(uv_stream_t *client, ssize_t nread, uv_buf_t buf)
 					"Network library: libuv</br>"
 					"<h2>Request Parameters</h2>"
 					"<ul>";
-				result = klunk_write_output(ctx, request_id, first, strlen(first));
-				result = klunk_write_output(ctx, request_id, params, strlen(params));
+				result = fastcgi_write_output(ctx, request_id, first, strlen(first));
+				result = fastcgi_write_output(ctx, request_id, params, strlen(params));
 				const char *second = 
 					"</ul>"
 					"<h2>Request Content</h2>"
 					"<pre>";
-				result = klunk_write_output(ctx, request_id, second, strlen(second));
+				result = fastcgi_write_output(ctx, request_id, second, strlen(second));
 
 				const char *request_content = 0;
 				if (buffer_used(request->content) > 0) {
@@ -235,10 +235,10 @@ void fcgi_read(uv_stream_t *client, ssize_t nread, uv_buf_t buf)
 					request_content = null_content;
 				}
 
-				result = klunk_write_output(ctx, request_id, request_content, strlen(request_content));
+				result = fastcgi_write_output(ctx, request_id, request_content, strlen(request_content));
 				const char *third = 
 					"</pre></body></html>\r\n";
-				result = klunk_write_output(ctx, request_id, third, strlen(third));
+				result = fastcgi_write_output(ctx, request_id, third, strlen(third));
 
 				free(params);
 				// printf("fcgi_read: generate content, %d\n", content_len);
@@ -246,7 +246,7 @@ void fcgi_read(uv_stream_t *client, ssize_t nread, uv_buf_t buf)
 				assert(result > 0);
 				// printf("fcgi_read: buffer content, %d\n", result);
 
-				result = klunk_write(ctx, buffer_peek(sr->buffer), buffer_free(sr->buffer), request_id);
+				result = fastcgi_write(ctx, buffer_peek(sr->buffer), buffer_free(sr->buffer), request_id);
 				assert(result > 0);
 				// printf("fcgi_read: write content, %d\n", result);
 
@@ -291,7 +291,7 @@ int main()
 	assert(server_ctx != 0);
 
 	// printf("create service\n");
-	server_ctx->ctx = klunk_create();
+	server_ctx->ctx = fastcgi_create();
 	assert(server_ctx->ctx != 0);
 
 	uv_signal_t sigint;

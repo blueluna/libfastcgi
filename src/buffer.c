@@ -3,21 +3,24 @@
  * Licensed under the MIT licence.
  */
 
+#include <stdlib.h>
+
 #include "buffer.h"
 #include "errorcodes.h"
-#include <stdlib.h>
+
+static const size_t CHUNK_SIZE = 4096;
 
 buffer_t* buffer_create()
 {
 	buffer_t *buf = malloc(sizeof(buffer_t));
 	if (buf != 0) {
-		buf->data = malloc(1024);
+		buf->data = malloc(CHUNK_SIZE);
 		if (buf->data == 0) {
 			free(buf);
 			buf = 0;
 		}
 		else {
-			buf->size = 1024;
+			buf->size = CHUNK_SIZE;
 			buf->used = 0;
 		}
 	}
@@ -66,7 +69,7 @@ int32_t buffer_resize(buffer_t *buf, const size_t minsize)
 	if (buf == 0) {
 		return E_INVALID_ARGUMENT;
 	}
-	size_t new_buffer_size = ((minsize / 1024) + 1) * 1024;
+	size_t new_buffer_size = ((minsize / CHUNK_SIZE) + 1) * CHUNK_SIZE;
 	if (new_buffer_size < buf->size) {
 		return buf->size;
 	}
@@ -154,9 +157,9 @@ int32_t buffer_reset(buffer_t *buf)
 		buf->size = 0;
 		buf->used = 0;
 	}
-	buf->data = malloc(1024);
+	buf->data = malloc(CHUNK_SIZE);
 	if (buf->data != 0) {
-		buf->size = 1024;
+		buf->size = CHUNK_SIZE;
 		buf->used = 0;
 	}
 	else {

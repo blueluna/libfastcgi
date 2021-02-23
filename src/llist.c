@@ -186,7 +186,7 @@ llist_item_t* llist_begin(llist_t *list)
 }
 
 llist_item_t*	llist_find_item_match(llist_t *list
-	, llist_iterator_func func, const void *key)
+	, llist_iterator_func func, void *key)
 {
 	if (list == 0 || func == 0) {
 		return 0;
@@ -204,7 +204,7 @@ llist_item_t*	llist_find_item_match(llist_t *list
 /* Iterate through the list and run the provided function
  */
 void llist_foreach(llist_t *list, llist_iterator_func func
-	, const void *user_data)
+	, void *user_data)
 {
 	if (list == 0 || func == 0) {
 		return;

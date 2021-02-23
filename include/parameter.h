@@ -1,38 +1,38 @@
 /* FCGI Key/Value Pair
- *(C) 2014 Erik Svensson <erik.public@gmail.com>
+ * (C) 2014 Erik Svensson <erik.public@gmail.com>
  * Licensed under the MIT license.
  */
 
-#ifndef KLUNK_PARAM_H
-#define KLUNK_PARAM_H
+#ifndef FASTCGI_PARAMETER_H
+#define FASTCGI_PARAMETER_H
 
 #include <stdlib.h>
 #include <stdint.h>
 
-typedef struct klunk_param_  {
+typedef struct fastcgi_param_  {
 	size_t		name_allocated;
 	size_t		value_allocated;
 	size_t		name_len;
 	size_t		value_len;
 	char		*name;
 	char		*value;
-} klunk_param_t;
+} fastcgi_parameter_t;
 
 /* Create a param "object" with the provided key/value pair */
-klunk_param_t* klunk_param_create(const char *name, const size_t name_len
+fastcgi_parameter_t* fastcgi_parameter_create(const char *name, const size_t name_len
 	, const char *value, const size_t value_len);
 
 /* Destroy a param "object" */
-void klunk_param_destroy(klunk_param_t *param);
+void fastcgi_parameter_destroy(fastcgi_parameter_t *param);
 
 /* Set the key/value pair */
-int32_t klunk_param_set(klunk_param_t* param
+int32_t fastcgi_parameter_set(fastcgi_parameter_t* param
 	, const char *name, const size_t name_len
 	, const char *value, const size_t value_len);
 
 /* Clear the key/value pair */
-int32_t klunk_param_reset(klunk_param_t* param);
+int32_t fastcgi_parameter_reset(fastcgi_parameter_t* param);
 
-int32_t klunk_param_is_free(klunk_param_t *param);
+int32_t fastcgi_parameter_is_free(fastcgi_parameter_t *param);
 
-#endif /* KLUNK_PARAM_H */
+#endif /* FASTCGI_PARAMETER_H */

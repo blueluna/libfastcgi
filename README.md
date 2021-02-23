@@ -1,15 +1,12 @@
-Klunk
-=====
+# FastCGI
 
 An attempt to build a light weight FCGI handler in C for use with Luajit.
 
-Build
------
+## Build
 
 Use cmake to generate a Makefile, then build using make.
 
-Limitations
------------
+# Limitations
 
  * Tested on Linux only.
  * Only supports the reponder role.
@@ -19,6 +16,8 @@ Limitations
    * FCGI_GET_VALUES
    * FCGI_GET_VALUES_RESULT
 
+# License
+
 Licensed under the MIT license. See LICENSE.
 
-Copyright © 2014 Erik Svensson <erik.public@gmail.com>
+Copyright © 2014-2021 Erik Svensson <erik.public@gmail.com>

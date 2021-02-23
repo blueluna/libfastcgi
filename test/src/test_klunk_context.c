@@ -6,9 +6,9 @@
 #include <errno.h>
 
 #include "testcase.h"
-#include "klunk.h"
-#include "klunk_request.h"
-#include "klunk_param.h"
+#include "fastcgi.h"
+#include "request.h"
+#include "parameter.h"
 #include "errorcodes.h"
 #include "test_klunk_context.h"
 
@@ -235,11 +235,11 @@ void klunk_context_test()
 	int str_result = 0;
 	char *data = 0;
 	char *params = 0;
-	klunk_context_t *ctx = 0;
-	klunk_request_t *request = 0;
+	fastcgi_context_t *ctx = 0;
+	fastcgi_request_t *request = 0;
 
 	int32_t major, minor, patch;
-	klunk_version(&major, &minor, &patch);
+	fastcgi_version(&major, &minor, &patch);
 	TEST_ASSERT_EQUAL(major, 0);
 	TEST_ASSERT_EQUAL(minor, 1);
 	TEST_ASSERT_EQUAL(patch, 0);
@@ -250,90 +250,90 @@ void klunk_context_test()
 	assert(params != 0);
 
 	/* Test responses for null context */
-	klunk_destroy(0);
+	fastcgi_destroy(0);
 
-	result = klunk_current_request(0);
+	result = fastcgi_current_request_id(0);
 	TEST_ASSERT_EQUAL(result, E_INVALID_OBJECT);
 
-	result = klunk_request_state(0, 0);
+	result = fastcgi_request_state(0, 0);
 	TEST_ASSERT_EQUAL(result, E_INVALID_OBJECT);
 
-	result = klunk_read(0, 0, 0);
+	result = fastcgi_read(0, 0, 0);
 	TEST_ASSERT_EQUAL(result, E_INVALID_OBJECT);
 
-	result = klunk_write_output(0, 0, 0, 0);
+	result = fastcgi_write_output(0, 0, 0, 0);
 	TEST_ASSERT_EQUAL(result, E_INVALID_OBJECT);
 
-	result = klunk_write_error(0, 0, 0, 0);
+	result = fastcgi_write_error(0, 0, 0, 0);
 	TEST_ASSERT_EQUAL(result, E_INVALID_OBJECT);
 
-	result = klunk_write(0, 0, 0, 0);
+	result = fastcgi_write(0, 0, 0, 0);
 	TEST_ASSERT_EQUAL(result, E_INVALID_OBJECT);
 
-	request = klunk_find_request(0, 0);
+	request = fastcgi_find_request(0, 0);
 	TEST_ASSERT_EQUAL(request, 0);
 
-	ctx = klunk_create();
+	ctx = fastcgi_create();
 	TEST_ASSERT_NOT_EQUAL(ctx, 0);
 	if (ctx != 0) {
 		/* Check state for newly initialized context */
-		result = klunk_current_request(ctx);
+		result = fastcgi_current_request_id(ctx);
 		TEST_ASSERT_EQUAL(result, 0);
 
-		result = klunk_request_state(ctx, 0);
+		result = fastcgi_request_state(ctx, 0);
 		TEST_ASSERT_EQUAL(result, E_REQUEST_NOT_FOUND);
 
-		result = klunk_read(ctx, 0, 0);
+		result = fastcgi_read(ctx, 0, 0);
 		TEST_ASSERT_EQUAL(result, E_INVALID_ARGUMENT);
 		
-		result = klunk_write_output(ctx, 0, 0, 0);
+		result = fastcgi_write_output(ctx, 0, 0, 0);
 		TEST_ASSERT_EQUAL(result, E_REQUEST_NOT_FOUND);
 		
-		result = klunk_write_error(ctx, 0, 0, 0);
+		result = fastcgi_write_error(ctx, 0, 0, 0);
 		TEST_ASSERT_EQUAL(result, E_REQUEST_NOT_FOUND);
 		
-		result = klunk_write(ctx, 0, 0, 0);
+		result = fastcgi_write(ctx, 0, 0, 0);
 		TEST_ASSERT_EQUAL(result, E_REQUEST_NOT_FOUND);
 
 		/* Insert a begin record to generate a request object */
 
 		data_size = generate_begin((uint8_t*)data, 1024, request_id);
 
-		result = klunk_read(ctx, data, data_size);
+		result = fastcgi_read(ctx, data, data_size);
 		TEST_ASSERT_EQUAL(result, data_size);
 
-		result = klunk_current_request(ctx);
+		result = fastcgi_current_request_id(ctx);
 		TEST_ASSERT_EQUAL(result, request_id);
 
-		result = klunk_request_state(ctx, result);
-		TEST_ASSERT_EQUAL(result, KLUNK_RS_NEW);
+		result = fastcgi_request_state(ctx, result);
+		TEST_ASSERT_EQUAL(result, FASTCGI_RS_NEW);
 				
-		result = klunk_write(ctx, 0, 0, request_id);
+		result = fastcgi_write(ctx, 0, 0, request_id);
 		TEST_ASSERT_EQUAL(result, E_INVALID_ARGUMENT);
 
-		result = klunk_request_state(ctx, request_id);
-		TEST_ASSERT_EQUAL(result, KLUNK_RS_NEW);
+		result = fastcgi_request_state(ctx, request_id);
+		TEST_ASSERT_EQUAL(result, FASTCGI_RS_NEW);
 
 		/* Run the same begin request again */
 
-		result = klunk_read(ctx, data, data_size);
+		result = fastcgi_read(ctx, data, data_size);
 		TEST_ASSERT_EQUAL(result, E_REQUEST_DUPLICATE);
 
-		result = klunk_request_state(ctx, request_id);
-		TEST_ASSERT_EQUAL(result, KLUNK_RS_NEW);
+		result = fastcgi_request_state(ctx, request_id);
+		TEST_ASSERT_EQUAL(result, FASTCGI_RS_NEW);
 
 		/* Insert a param record */
 
 		params_size = add_param(params, 1024, "hello", "world");
 		data_size = generate_param((uint8_t*)data, 1024, request_id, params, params_size);
 
-		result = klunk_read(ctx, data, data_size);
+		result = fastcgi_read(ctx, data, data_size);
 		TEST_ASSERT_EQUAL(result, data_size);
 
-		result = klunk_request_state(ctx, request_id);
-		TEST_ASSERT_EQUAL(result, (KLUNK_RS_NEW | KLUNK_RS_PARAMS));
+		result = fastcgi_request_state(ctx, request_id);
+		TEST_ASSERT_EQUAL(result, (FASTCGI_RS_NEW | FASTCGI_RS_PARAMS));
 
-		request = klunk_find_request(ctx, request_id);
+		request = fastcgi_find_request(ctx, request_id);
 		klunk_param_t *param = (klunk_param_t*)(request->params->items->data);
 		
 		str_result = strcmp(param->name, "hello");
@@ -349,39 +349,39 @@ void klunk_context_test()
 			);
 		data_size = generate_param((uint8_t*)data, 1024, request_id, params, params_size);
 
-		result = klunk_read(ctx, data, data_size);
+		result = fastcgi_read(ctx, data, data_size);
 		TEST_ASSERT_EQUAL(result, data_size);
 
-		result = klunk_request_state(ctx, request_id);
-		TEST_ASSERT_EQUAL(result, (KLUNK_RS_NEW | KLUNK_RS_PARAMS));
+		result = fastcgi_request_state(ctx, request_id);
+		TEST_ASSERT_EQUAL(result, (FASTCGI_RS_NEW | FASTCGI_RS_PARAMS));
 
 		data_size = generate_param((uint8_t*)data, 1024, request_id, 0, 0);
 
-		result = klunk_read(ctx, data, data_size);
+		result = fastcgi_read(ctx, data, data_size);
 		TEST_ASSERT_EQUAL(result, data_size);
 
-		result = klunk_request_state(ctx, request_id);
-		TEST_ASSERT_EQUAL(result, (KLUNK_RS_NEW | KLUNK_RS_PARAMS
-			| KLUNK_RS_PARAMS_DONE));
+		result = fastcgi_request_state(ctx, request_id);
+		TEST_ASSERT_EQUAL(result, (FASTCGI_RS_NEW | FASTCGI_RS_PARAMS
+			| FASTCGI_RS_PARAMS_DONE));
 
 		memcpy(params, "{\"hello\": \"world\"}", 18);
 		data_size = generate_stdin((uint8_t*)data, 1024, request_id, params, 18);
 
-		result = klunk_read(ctx, data, data_size);
+		result = fastcgi_read(ctx, data, data_size);
 		TEST_ASSERT_EQUAL(result, data_size);
 
-		result = klunk_request_state(ctx, request_id);
-		TEST_ASSERT_EQUAL(result, (KLUNK_RS_NEW | KLUNK_RS_PARAMS
-			| KLUNK_RS_PARAMS_DONE | KLUNK_RS_STDIN));
+		result = fastcgi_request_state(ctx, request_id);
+		TEST_ASSERT_EQUAL(result, (FASTCGI_RS_NEW | FASTCGI_RS_PARAMS
+			| FASTCGI_RS_PARAMS_DONE | FASTCGI_RS_STDIN));
 
 		data_size = generate_stdin((uint8_t*)data, 1024, request_id, 0, 0);
 
-		result = klunk_read(ctx, data, data_size);
+		result = fastcgi_read(ctx, data, data_size);
 		TEST_ASSERT_EQUAL(result, data_size);
 
-		result = klunk_request_state(ctx, request_id);
-		TEST_ASSERT_EQUAL(result, (KLUNK_RS_NEW | KLUNK_RS_PARAMS
-			| KLUNK_RS_PARAMS_DONE | KLUNK_RS_STDIN | KLUNK_RS_STDIN_DONE));
+		result = fastcgi_request_state(ctx, request_id);
+		TEST_ASSERT_EQUAL(result, (FASTCGI_RS_NEW | FASTCGI_RS_PARAMS
+			| FASTCGI_RS_PARAMS_DONE | FASTCGI_RS_STDIN | FASTCGI_RS_STDIN_DONE));
 
 		data_size = buffer_used(request->content);
 		memcpy(data, buffer_peek(request->content), data_size);
@@ -393,9 +393,9 @@ void klunk_context_test()
 		fcgi_record rec;
 		memcpy(params, "{\"hello\": \"world\"}", 18);
 
-		klunk_write_output(ctx, request_id, params, 18);
+		fastcgi_write_output(ctx, request_id, params, 18);
 
-		data_size = klunk_write(ctx, data, 1024, request_id);
+		data_size = fastcgi_write(ctx, data, 1024, request_id);
 		TEST_ASSERT_GT(data_size, 0);
 		result = parse_record(data, data_size, &rec);
 		if (result > 0) {
@@ -409,12 +409,12 @@ void klunk_context_test()
 			TEST_ASSERT_EQUAL(result, 0);
 		}
 
-		klunk_write_error(ctx, request_id, params, 18);
+		fastcgi_write_error(ctx, request_id, params, 18);
 
-		result = klunk_write(ctx, data, 8, request_id);
+		result = fastcgi_write(ctx, data, 8, request_id);
 		TEST_ASSERT_EQUAL(result, E_INVALID_SIZE);
 
-		data_size = klunk_write(ctx, data, 1024, request_id);
+		data_size = fastcgi_write(ctx, data, 1024, request_id);
 		TEST_ASSERT_GT(data_size, 0);
 		result = parse_record(data, data_size, &rec);
 		if (result > 0) {
@@ -428,18 +428,18 @@ void klunk_context_test()
 			TEST_ASSERT_EQUAL(result, 0);
 		}
 
-		klunk_write_output(ctx, request_id, 0, 0);
+		fastcgi_write_output(ctx, request_id, 0, 0);
 
-		data_size = klunk_write(ctx, data, 1024, request_id);
+		data_size = fastcgi_write(ctx, data, 1024, request_id);
 		TEST_ASSERT_EQUAL(data_size, 0);
 
-		result = klunk_finish(ctx, request_id);
+		result = fastcgi_finish(ctx, request_id);
 		TEST_ASSERT_TRUE(result >= E_SUCCESS);
 
-		result = klunk_write(ctx, data, 7, request_id);
+		result = fastcgi_write(ctx, data, 7, request_id);
 		TEST_ASSERT_EQUAL(result, E_INVALID_SIZE);
 
-		data_size = klunk_write(ctx, data, 1024, request_id);
+		data_size = fastcgi_write(ctx, data, 1024, request_id);
 
 		TEST_ASSERT_GT(data_size, 0);
 		result = parse_record(data, data_size, &rec);
@@ -452,10 +452,10 @@ void klunk_context_test()
 			TEST_ASSERT_EQUAL(rec.header.padding_len, 0);
 		}
 
-		result = klunk_write(ctx, data, 7, request_id);
+		result = fastcgi_write(ctx, data, 7, request_id);
 		TEST_ASSERT_EQUAL(result, E_INVALID_SIZE);
 
-		data_size = klunk_write(ctx, data, 1024, request_id);
+		data_size = fastcgi_write(ctx, data, 1024, request_id);
 
 		result = parse_record(data, data_size, &rec);
 		if (result > 0) {
@@ -467,10 +467,10 @@ void klunk_context_test()
 			TEST_ASSERT_EQUAL(rec.header.padding_len, 0);
 		}
 
-		result = klunk_write(ctx, data, 15, request_id);
+		result = fastcgi_write(ctx, data, 15, request_id);
 		TEST_ASSERT_EQUAL(result, E_INVALID_SIZE);
 
-		data_size = klunk_write(ctx, data, 1024, request_id);
+		data_size = fastcgi_write(ctx, data, 1024, request_id);
 
 		result = parse_record(data, data_size, &rec);
 		if (result > 0) {
@@ -485,15 +485,15 @@ void klunk_context_test()
 			TEST_ASSERT_EQUAL(result, 0);
 		}
 
-		result = klunk_write(ctx, data, 1024, request_id);
+		result = fastcgi_write(ctx, data, 1024, request_id);
 
 		TEST_ASSERT_EQUAL(result, E_REQUEST_NOT_FOUND);
 
-		request = klunk_find_request(ctx, request_id);
+		request = fastcgi_find_request(ctx, request_id);
 		TEST_ASSERT_EQUAL(request, 0);
 
-		klunk_destroy(ctx);
-		klunk_destroy(0);
+		fastcgi_destroy(ctx);
+		fastcgi_destroy(0);
 	}
 
 	free(data);

@@ -1,13 +1,14 @@
-#include "klunk_param.h"
+#include "parameter.h"
 #include "errorcodes.h"
+
 #include <string.h>
 
-klunk_param_t* klunk_param_create(const char *name, const size_t name_len
+fastcgi_parameter_t* fastcgi_parameter_create(const char *name, const size_t name_len
 	, const char *value, const size_t value_len)
 {
 	int32_t result = E_SUCCESS;
-	klunk_param_t *param = 0;
-	param = malloc(sizeof(klunk_param_t));
+	fastcgi_parameter_t *param = 0;
+	param = malloc(sizeof(fastcgi_parameter_t));
 	if (param != 0) {
 		param->name = 0;
 		param->name_len = 0;
@@ -16,16 +17,16 @@ klunk_param_t* klunk_param_create(const char *name, const size_t name_len
 		param->value_len = 0;
 		param->value_allocated = 0;
 
-		result = klunk_param_set(param, name, name_len, value, value_len);
+		result = fastcgi_parameter_set(param, name, name_len, value, value_len);
 		if (result != E_SUCCESS) {
-			klunk_param_destroy(param);
+			fastcgi_parameter_destroy(param);
 			param = 0;
 		}
 	}
 	return param;
 }
 
-void klunk_param_destroy(klunk_param_t *param)
+void fastcgi_parameter_destroy(fastcgi_parameter_t *param)
 {
 	if (param != 0) {
 		if (param->name_allocated > 0) {
@@ -45,7 +46,7 @@ void klunk_param_destroy(klunk_param_t *param)
 }
 
 /* Set the key/value pair */
-int32_t klunk_param_set(klunk_param_t* param
+int32_t fastcgi_parameter_set(fastcgi_parameter_t* param
 	, const char *name, const size_t name_len
 	, const char *value, const size_t value_len)
 {
@@ -99,7 +100,7 @@ int32_t klunk_param_set(klunk_param_t* param
 }
 
 /* Clear the key/value pair */
-int32_t klunk_param_reset(klunk_param_t* param)
+int32_t fastcgi_parameter_reset(fastcgi_parameter_t* param)
 {
 	int32_t result = E_SUCCESS;
 	if (param == 0) {
@@ -118,7 +119,7 @@ int32_t klunk_param_reset(klunk_param_t* param)
 	return result;
 }
 
-int32_t klunk_param_is_free(klunk_param_t *param)
+int32_t fastcgi_parameter_is_free(fastcgi_parameter_t *param)
 {
 	if (param == 0) {
 		return E_INVALID_OBJECT;

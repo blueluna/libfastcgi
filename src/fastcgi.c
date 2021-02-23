@@ -1,39 +1,39 @@
-#include "klunk.h"
+#include "fastcgi.h"
 #include "errorcodes.h"
-#include "klunk_request.h"
-#include "klunk_param.h"
+#include "request.h"
+#include "parameter.h"
 #include <assert.h>
 #include <stdlib.h>
 #include <arpa/inet.h>
 #include <unistd.h>
 #include <errno.h>
 
-void klunk_version(int32_t *version_major, int32_t *version_minor
+void fastcgi_version(int32_t *version_major, int32_t *version_minor
 	, int32_t *version_patch)
 {
 	if (version_major != 0) {
-		*version_major = KLUNK_VERSION_MAJOR;
+		*version_major = 0;
 	}
 	if (version_minor != 0) {
-		*version_minor = KLUNK_VERSION_MINOR;
+		*version_minor = 1;
 	}
 	if (version_patch != 0) {
-		*version_patch = KLUNK_VERSION_PATCH;
+		*version_patch = 0;
 	}
 }
 
-klunk_request_t* klunk_find_free_request(klunk_context_t *ctx)
+fastcgi_request_t* fastcgi_find_free_request(fastcgi_context_t *ctx)
 {
-	if (ctx == 0 || ctx->requests == 0 || ctx->requests->items == 0) {
-		return 0;
+	if (ctx == NULL || ctx->requests == NULL || ctx->requests->items == NULL) {
+		return NULL;
 	}
-	klunk_request_t* request = 0;
-	klunk_request_t* item = 0;
+	fastcgi_request_t* request = NULL;
+	fastcgi_request_t* item = NULL;
 	llist_item_t *ptr = ctx->requests->items;
-	while (ptr != 0) {
-		item = (klunk_request_t*)(ptr->data);
+	while (ptr != NULL) {
+		item = (fastcgi_request_t*)(ptr->data);
 		if (item->id == 0) {
-			request = (klunk_request_t*)(ptr->data);
+			request = (fastcgi_request_t*)(ptr->data);
 			break;
 		}
 		ptr = ptr->next;
@@ -41,18 +41,18 @@ klunk_request_t* klunk_find_free_request(klunk_context_t *ctx)
 	return request;
 }
 
-klunk_request_t* klunk_find_request(klunk_context_t *ctx, const uint16_t id)
+fastcgi_request_t* fastcgi_find_request(fastcgi_context_t *ctx, const uint16_t id)
 {
-	if (ctx == 0 || ctx->requests == 0 || ctx->requests->items == 0) {
-		return 0;
+	if (ctx == NULL || ctx->requests == NULL || ctx->requests->items == NULL) {
+		return NULL;
 	}
-	klunk_request_t* request = 0;
-	klunk_request_t* item = 0;
+	fastcgi_request_t* request = NULL;
+	fastcgi_request_t* item = NULL;
 	llist_item_t *ptr = ctx->requests->items;
-	while (ptr != 0) {
-		item = (klunk_request_t*)(ptr->data);
+	while (ptr != NULL) {
+		item = (fastcgi_request_t*)(ptr->data);
 		if (item->id == id) {
-			request = (klunk_request_t*)(ptr->data);
+			request = (fastcgi_request_t*)(ptr->data);
 			break;
 		}
 		ptr = ptr->next;
@@ -60,19 +60,19 @@ klunk_request_t* klunk_find_request(klunk_context_t *ctx, const uint16_t id)
 	return request;
 }
 
-klunk_request_t* klunk_take_request(klunk_context_t *ctx, const uint16_t id)
+fastcgi_request_t* fastcgi_take_request(fastcgi_context_t *ctx, const uint16_t id)
 {
-	if (ctx == 0 || ctx->requests == 0 || ctx->requests->items == 0) {
-		return 0;
+	if (ctx == NULL || ctx->requests == NULL || ctx->requests->items == NULL) {
+		return NULL;
 	}
-	klunk_request_t* request = 0;
-	klunk_request_t* item = 0;
+	fastcgi_request_t* request = NULL;
+	fastcgi_request_t* item = NULL;
 	llist_item_t *ptr = ctx->requests->items;
-	while (ptr != 0) {
-		item = (klunk_request_t*)(ptr->data);
+	while (ptr != NULL) {
+		item = (fastcgi_request_t*)(ptr->data);
 		if (item->id == id) {
 			llist_take(ctx->requests, ptr->data);
-			request = (klunk_request_t*)(ptr->data);
+			request = (fastcgi_request_t*)(ptr->data);
 			break;
 		}
 		ptr = ptr->next;
@@ -80,7 +80,7 @@ klunk_request_t* klunk_take_request(klunk_context_t *ctx, const uint16_t id)
 	return request;
 }
 
-int32_t klunk_read_header(fcgi_record_header_t *header
+int32_t fastcgi_read_header(fcgi_record_header_t *header
 	, const char *data, const size_t len)
 {
 	int32_t result = E_SUCCESS;
@@ -95,12 +95,12 @@ int32_t klunk_read_header(fcgi_record_header_t *header
 	return result;
 }
 
-int32_t klunk_begin_request(klunk_context_t *ctx
+int32_t fastcgi_begin_request(fastcgi_context_t *ctx
 	, const char *data, const size_t len)
 {
 	int32_t result = E_SUCCESS;
 	fcgi_record_begin_t record = {0};
-	klunk_request_t *request = 0;
+	fastcgi_request_t *request = 0;
 
 	if (len >= sizeof(fcgi_record_begin_t))
 	{
@@ -115,23 +115,23 @@ int32_t klunk_begin_request(klunk_context_t *ctx
 		result = E_INVALID_SIZE;
 	}
 	if (result == E_SUCCESS) {
-		request = klunk_find_free_request(ctx);
+		request = fastcgi_find_free_request(ctx);
 		if (request == 0) {
-			request = klunk_request_create();
+			request = fastcgi_request_create();
 			result = llist_add(ctx->requests, request
-				, sizeof(klunk_request_t));
+				, sizeof(fastcgi_request_t));
 		}
 		if (result == E_SUCCESS) {
 			request->id = ctx->current_header->request_id;
 			request->role = record.role;
 			request->flags = record.flags;
-			klunk_request_set_state(request, KLUNK_RS_NEW);
+			fastcgi_request_set_state(request, FASTCGI_RS_NEW);
 		}
 	}
 	return result;
 }
 
-int32_t klunk_params(klunk_request_t *request
+int32_t fastcgi_params(fastcgi_request_t *request
 	, const char *data, const size_t len)
 {
 	int32_t n = 0;
@@ -148,10 +148,10 @@ int32_t klunk_params(klunk_request_t *request
 	left = (int32_t)len;
 
 	if (len == 0) {
-		klunk_request_set_state(request, KLUNK_RS_PARAMS_DONE);
+		fastcgi_request_set_state(request, FASTCGI_RS_PARAMS_DONE);
 	}
 	else {
-		klunk_request_set_state(request, KLUNK_RS_PARAMS);
+		fastcgi_request_set_state(request, FASTCGI_RS_PARAMS);
 	}
 
 	while (left > 0) {
@@ -191,7 +191,7 @@ int32_t klunk_params(klunk_request_t *request
 			ptr += str_len[1];
 			left -= str_len[1];
 
-			klunk_request_parameter_add(request, name, str_len[0]
+			fastcgi_request_parameter_add(request, name, str_len[0]
 				, value, str_len[1]);
 
 			bytes_used += (bytes_delta_acc + str_len[0] + str_len[1]);
@@ -203,16 +203,16 @@ int32_t klunk_params(klunk_request_t *request
 	return bytes_used;
 }
 
-int32_t klunk_stdin(klunk_request_t *request
+int32_t fastcgi_stdin(fastcgi_request_t *request
 	, const char *input, const size_t input_len)
 {
 	int32_t result = E_SUCCESS;
 
 	if (input_len == 0) {
-		klunk_request_set_state(request, KLUNK_RS_STDIN_DONE);
+		fastcgi_request_set_state(request, FASTCGI_RS_STDIN_DONE);
 	}
 	else {
-		klunk_request_set_state(request, KLUNK_RS_STDIN);
+		fastcgi_request_set_state(request, FASTCGI_RS_STDIN);
 	}
 
 	result = buffer_write(request->content, input, input_len);
@@ -220,15 +220,15 @@ int32_t klunk_stdin(klunk_request_t *request
 	return result;
 }
 
-int32_t klunk_process_input_buffer(klunk_context_t *ctx)
+int32_t fastcgi_process_input_buffer(fastcgi_context_t *ctx)
 {
 	int32_t result = E_SUCCESS;
 	int32_t buffer_length = 0;
 	const char *buffer_data = 0;
 	int32_t bytes_used = 0;
-	klunk_request_t *request = 0;
+	fastcgi_request_t *request = 0;
 
-	request = klunk_find_request(ctx, ctx->current_header->request_id);
+	request = fastcgi_find_request(ctx, ctx->current_header->request_id);
 	if (request == 0) {
 		if (ctx->current_header->type != FCGI_BEGIN_REQUEST) {
 			result = E_REQUEST_NOT_FOUND;
@@ -246,11 +246,11 @@ int32_t klunk_process_input_buffer(klunk_context_t *ctx)
 		buffer_data = buffer_peek(ctx->input);
 		switch (ctx->current_header->type) {
 			case FCGI_BEGIN_REQUEST:
-				result = klunk_begin_request(ctx, buffer_data, buffer_length);
+				result = fastcgi_begin_request(ctx, buffer_data, buffer_length);
 				bytes_used = buffer_length;
 				break;
 			case FCGI_PARAMS:
-				result = klunk_params(request, buffer_data, buffer_length);
+				result = fastcgi_params(request, buffer_data, buffer_length);
 				if (result >= 0) {
 					bytes_used = result;
 				}
@@ -260,7 +260,7 @@ int32_t klunk_process_input_buffer(klunk_context_t *ctx)
 				}
 				break;
 			case FCGI_STDIN:
-				result = klunk_stdin(request, buffer_data, buffer_length);
+				result = fastcgi_stdin(request, buffer_data, buffer_length);
 				if (result >= 0) {
 					bytes_used = result;
 				}
@@ -283,7 +283,7 @@ int32_t klunk_process_input_buffer(klunk_context_t *ctx)
 	return result;
 }
 
-int32_t klunk_process_input(klunk_context_t *ctx
+int32_t fastcgi_process_input(fastcgi_context_t *ctx
 	, const char *data, const size_t len)
 {
 	int32_t length = 0;
@@ -302,7 +302,7 @@ int32_t klunk_process_input(klunk_context_t *ctx
 	while (length > 0) {
 		/* Try to read header if neccesary */
 		if (ctx->read_state == 0) {
-			result = klunk_read_header(ctx->current_header, ptr, length);
+			result = fastcgi_read_header(ctx->current_header, ptr, length);
 			if (result == E_SUCCESS) {
 				length -= sizeof(fcgi_record_header_t);
 				ptr += sizeof(fcgi_record_header_t);
@@ -353,7 +353,7 @@ int32_t klunk_process_input(klunk_context_t *ctx
 				}
 				/* Check if all incoming data has been read */
 				if (bytes_left == 0) {
-					result = klunk_process_input_buffer(ctx);
+					result = fastcgi_process_input_buffer(ctx);
 					ctx->read_state = 0;
 				}
 			}	
@@ -365,7 +365,7 @@ int32_t klunk_process_input(klunk_context_t *ctx
 	return result;
 }
 
-int32_t klunk_process_data(klunk_context_t *ctx
+int32_t fastcgi_process_data(fastcgi_context_t *ctx
 	, const char *data, const size_t len)
 {
 	if (ctx == 0) {
@@ -377,25 +377,25 @@ int32_t klunk_process_data(klunk_context_t *ctx
 	if (len == 0) {
 		return E_SUCCESS;
 	}
-	return klunk_process_input(ctx, data, len);
+	return fastcgi_process_input(ctx, data, len);
 }
 
 /**** Public functions ******/
 
-klunk_context_t * klunk_create()
+fastcgi_context_t * fastcgi_create()
 {
-	klunk_context_t *ctx = 0;
+	fastcgi_context_t *ctx = 0;
 
-	ctx = malloc(sizeof(klunk_context_t));
+	ctx = malloc(sizeof(fastcgi_context_t));
 	if (ctx != 0) {
-		ctx->requests = llist_create(sizeof(klunk_request_t));
+		ctx->requests = llist_create(sizeof(fastcgi_request_t));
 		if (ctx->requests == 0) {
 			free(ctx);
 			ctx = 0;
 		}
 		else {
 			llist_register_dtor(ctx->requests
-				, (llist_item_dtor_func)&klunk_request_destroy);
+				, (llist_item_dtor_func)&fastcgi_request_destroy);
 		}
 	}
 	if (ctx != 0) {
@@ -443,7 +443,7 @@ klunk_context_t * klunk_create()
 	return ctx;
 }
 
-void klunk_destroy(klunk_context_t *ctx)
+void fastcgi_destroy(fastcgi_context_t *ctx)
 {
 	if (ctx != 0) {
 		llist_destroy(ctx->requests);
@@ -459,7 +459,7 @@ void klunk_destroy(klunk_context_t *ctx)
 	}
 }
 
-int32_t klunk_current_request(klunk_context_t *ctx)
+int32_t fastcgi_current_request_id(fastcgi_context_t *ctx)
 {
 	if (ctx == 0) {
 		return E_INVALID_OBJECT;
@@ -467,117 +467,117 @@ int32_t klunk_current_request(klunk_context_t *ctx)
 	return ctx->current_header->request_id;
 }
 
-int32_t klunk_request_state(klunk_context_t *ctx, const uint16_t request_id)
+int32_t fastcgi_request_state(fastcgi_context_t *ctx, const uint16_t request_id)
 {
 	int32_t result = E_SUCCESS;
-	klunk_request_t *request = 0;
+	fastcgi_request_t *request = 0;
 
 	if (ctx == 0) {
 		return E_INVALID_OBJECT;
 	}
 
-	request = klunk_find_request(ctx, request_id);
+	request = fastcgi_find_request(ctx, request_id);
 	if (request == 0) {
 		result = E_REQUEST_NOT_FOUND;
 	}
 	else {
-		result = klunk_request_get_state(request, 0);
+		result = fastcgi_request_get_state(request, 0);
 	}
 	return result;
 }
 
-int32_t klunk_read(klunk_context_t *ctx
+int32_t fastcgi_read(fastcgi_context_t *ctx
 	, const char *input, const size_t input_len)
 {
 	if (ctx == 0) {
 		return E_INVALID_OBJECT;
 	}
-	return klunk_process_data(ctx, input, input_len);
+	return fastcgi_process_data(ctx, input, input_len);
 }
 
-int32_t klunk_write_output(klunk_context_t *ctx
+int32_t fastcgi_write_output(fastcgi_context_t *ctx
 	, const uint16_t request_id
 	, const char *input, const size_t input_len)
 {
 	int32_t result = E_SUCCESS;
-	klunk_request_t *request = 0;
+	fastcgi_request_t *request = 0;
 
 	if (ctx == 0) {
 		return E_INVALID_OBJECT;
 	}
 
-	request = klunk_find_request(ctx, request_id);
+	request = fastcgi_find_request(ctx, request_id);
 	if (request == 0) {
 		result = E_REQUEST_NOT_FOUND;
 	}
 	else {
-		result = klunk_request_write_output(request, input, input_len);
+		result = fastcgi_request_write_output(request, input, input_len);
 	}
 	
 	return result;
 }
 
-int32_t klunk_write_error(klunk_context_t *ctx
+int32_t fastcgi_write_error(fastcgi_context_t *ctx
 	, const uint16_t request_id
 	, const char *input, const size_t input_len)
 {
 	int32_t result = E_SUCCESS;
-	klunk_request_t *request = 0;
+	fastcgi_request_t *request = 0;
 
 	if (ctx == 0) {
 		return E_INVALID_OBJECT;
 	}
 
-	request = klunk_find_request(ctx, request_id);
+	request = fastcgi_find_request(ctx, request_id);
 	if (request == 0) {
 		result = E_REQUEST_NOT_FOUND;
 	}
 	else {
-		result = klunk_request_write_error(request, input, input_len);
+		result = fastcgi_request_write_error(request, input, input_len);
 	}
 	
 	return result;
 }
 
-int32_t klunk_finish(klunk_context_t *ctx, const uint16_t request_id)
+int32_t fastcgi_finish(fastcgi_context_t *ctx, const uint16_t request_id)
 {
-	klunk_request_t *request = 0;
+	fastcgi_request_t *request = 0;
 	if (ctx == 0) {
 		return E_INVALID_OBJECT;
 	}
-	request = klunk_find_request(ctx, request_id);
+	request = fastcgi_find_request(ctx, request_id);
 	if (request == 0) {
 		return E_REQUEST_NOT_FOUND;
 	}
-	return klunk_request_finish(request, FCGI_REQUEST_COMPLETE, 0);
+	return fastcgi_request_finish(request, FCGI_REQUEST_COMPLETE, 0);
 }
 
-int32_t klunk_write(klunk_context_t *ctx
+int32_t fastcgi_write(fastcgi_context_t *ctx
 	, char *output, const size_t output_len, const uint16_t request_id)
 {
 	int32_t result = E_SUCCESS;
 	int32_t state = 0;
-	klunk_request_t *request = 0;
+	fastcgi_request_t *request = 0;
 
 	if (ctx == 0) {
 		return E_INVALID_OBJECT;
 	}
 
-	request = klunk_find_request(ctx, request_id);
+	request = fastcgi_find_request(ctx, request_id);
 
 	if (request == 0) {
 		result = E_REQUEST_NOT_FOUND;
 	}
 	else {
-		result = klunk_request_output(request, output, output_len);
+		result = fastcgi_request_output(request, output, output_len);
 	}
 	if (result >= 0) {
-		state = klunk_request_get_state(request, 0);
-		if ((state & KLUNK_RS_FINISHED)) {
+		state = fastcgi_request_get_state(request, 0);
+		if ((state & FASTCGI_RS_FINISHED)) {
 			/* Reset request */
-			klunk_request_reset(request);
+			fastcgi_request_reset(request);
 			request->id = 0;
-			klunk_request_set_state(request, KLUNK_RS_INIT);
+			fastcgi_request_set_state(request, FASTCGI_RS_INIT);
 		}
 	}
 	return result;
